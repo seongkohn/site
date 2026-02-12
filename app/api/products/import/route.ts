@@ -1,6 +1,7 @@
 import { getDb } from '@/lib/db';
 import { initializeSchema } from '@/lib/schema';
 import { getAdminUser } from '@/lib/auth';
+import { revalidatePath } from 'next/cache';
 import slugify from 'slugify';
 
 export async function POST(req: Request) {
@@ -80,6 +81,11 @@ export async function POST(req: Request) {
         errors.push(`Row ${i + 1} (${sku}): ${err instanceof Error ? err.message : 'unknown error'}`);
       }
     }
+
+    // Revalidate all pages that might display products or use categories/types
+    revalidatePath('/', 'layout'); // Revalidates entire app including SearchBar
+    revalidatePath('/products');
+    revalidatePath('/');
 
     return Response.json({ created, updated, errors });
   } catch (error) {

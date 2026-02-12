@@ -3,6 +3,7 @@ import { getDb } from '@/lib/db';
 import { initializeSchema } from '@/lib/schema';
 import { seedDatabase } from '@/lib/seed';
 import { getAdminUser } from '@/lib/auth';
+import { revalidatePath } from 'next/cache';
 import slugify from 'slugify';
 
 function ensureDb() {
@@ -45,5 +46,9 @@ export async function POST(request: NextRequest) {
   );
 
   const manufacturer = db.prepare('SELECT * FROM manufacturers WHERE id = ?').get(result.lastInsertRowid);
+
+  // Revalidate to refresh components that list manufacturers
+  revalidatePath('/', 'layout');
+
   return NextResponse.json(manufacturer, { status: 201 });
 }

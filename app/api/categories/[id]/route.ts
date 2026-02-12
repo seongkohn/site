@@ -3,6 +3,7 @@ import { getDb } from '@/lib/db';
 import { initializeSchema } from '@/lib/schema';
 import { seedDatabase } from '@/lib/seed';
 import { getAdminUser } from '@/lib/auth';
+import { revalidatePath } from 'next/cache';
 import slugify from 'slugify';
 
 function ensureDb() {
@@ -35,6 +36,10 @@ export async function PUT(
   );
 
   const updated = db.prepare('SELECT * FROM categories WHERE id = ?').get(parseInt(id, 10));
+
+  // Revalidate to refresh SearchBar and other components
+  revalidatePath('/', 'layout');
+
   return NextResponse.json(updated);
 }
 
@@ -52,5 +57,9 @@ export async function DELETE(
   const { id } = await params;
 
   db.prepare('DELETE FROM categories WHERE id = ?').run(parseInt(id, 10));
+
+  // Revalidate to refresh SearchBar and other components
+  revalidatePath('/', 'layout');
+
   return NextResponse.json({ success: true });
 }

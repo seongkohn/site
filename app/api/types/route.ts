@@ -3,6 +3,7 @@ import { getDb } from '@/lib/db';
 import { initializeSchema } from '@/lib/schema';
 import { seedDatabase } from '@/lib/seed';
 import { getAdminUser } from '@/lib/auth';
+import { revalidatePath } from 'next/cache';
 import slugify from 'slugify';
 
 function ensureDb() {
@@ -40,5 +41,9 @@ export async function POST(request: NextRequest) {
   `).run(body.name_en, body.name_ko, slug, body.sort_order || 0);
 
   const type = db.prepare('SELECT * FROM types WHERE id = ?').get(result.lastInsertRowid);
+
+  // Revalidate to refresh SearchBar and other components
+  revalidatePath('/', 'layout');
+
   return NextResponse.json(type, { status: 201 });
 }
