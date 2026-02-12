@@ -1,0 +1,55 @@
+# Nginx configuration for seongkohn.com
+# Copy to /etc/nginx/sites-available/seongkohn.com and symlink to sites-enabled
+
+server {
+    listen 80;
+    server_name seongkohn.com www.seongkohn.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name seongkohn.com www.seongkohn.com;
+
+    # SSL (managed by certbot or similar)
+    ssl_certificate /etc/letsencrypt/live/seongkohn.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/seongkohn.com/privkey.pem;
+
+    # Static files — serve directly
+    location /_next/static/ {
+        alias /var/www/seongkohn-site/.next/standalone/.next/static/;
+        expires 365d;
+        access_log off;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location /uploads/ {
+        alias /var/www/seongkohn-site/public/uploads/;
+        expires 30d;
+        access_log off;
+    }
+
+    location /placeholder-product.svg {
+        alias /var/www/seongkohn-site/public/placeholder-product.svg;
+        expires 30d;
+    }
+
+    location /robots.txt {
+        alias /var/www/seongkohn-site/public/robots.txt;
+    }
+
+    # Reverse proxy to Next.js
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    client_max_body_size 10M;
+}

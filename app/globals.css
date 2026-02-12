@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-brand-magenta: #353360;
+  --color-brand-purple: #353360;
+  --color-brand-navy: #1A1A2E;
+  --color-brand-pale: #EEEDF5;
+  --color-background: #ffffff;
+  --color-foreground: #171717;
+}
+
+html {
+  font-family: var(--font-inter), var(--font-noto-sans-kr), sans-serif;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
