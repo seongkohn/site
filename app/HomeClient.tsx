@@ -5,11 +5,12 @@ import Link from 'next/link';
 import { useLanguage } from '@/components/LanguageProvider';
 import { t } from '@/lib/i18n';
 import ProductCard from '@/components/ProductCard';
-import type { Product, Manufacturer } from '@/lib/types';
+import type { Product, Brand, HeroSlide } from '@/lib/types';
 
 interface HomeClientProps {
   featuredProducts: Product[];
-  manufacturers: Manufacturer[];
+  brands: Brand[];
+  heroSlides: HeroSlide[];
 }
 
 const homeCats = [
@@ -21,33 +22,16 @@ const homeCats = [
   { id: 'reagents', nameKey: 'homeCats.reagents', descKey: 'homeCats.reagentsDesc', icon: '\uD83E\uDDEA' },
 ];
 
-export default function HomeClient({ featuredProducts, manufacturers }: HomeClientProps) {
+export default function HomeClient({ featuredProducts, brands, heroSlides }: HomeClientProps) {
   const { lang } = useLanguage();
   const [slideIndex, setSlideIndex] = useState(0);
-
-  const slides = [
-    {
-      title: t('heroSlides.slide1Title', lang),
-      subtitle: t('heroSlides.slide1Sub', lang),
-    },
-    {
-      title: t('heroSlides.slide2Title', lang),
-      subtitle: t('heroSlides.slide2Sub', lang),
-    },
-    {
-      title: t('heroSlides.slide3Title', lang),
-      subtitle: t('heroSlides.slide3Sub', lang),
-    },
-    {
-      title: t('heroSlides.slide4Title', lang),
-      subtitle: t('heroSlides.slide4Sub', lang),
-    },
-  ];
+  const slideCount = heroSlides.length || 1;
 
   useEffect(() => {
-    const timer = setInterval(() => setSlideIndex((i) => (i + 1) % 4), 8000);
+    if (heroSlides.length <= 1) return;
+    const timer = setInterval(() => setSlideIndex((i) => (i + 1) % slideCount), 8000);
     return () => clearInterval(timer);
-  }, []);
+  }, [slideCount, heroSlides.length]);
 
   const stats = [
     { n: '35+', label: t('home.stat_years', lang) },
@@ -56,31 +40,54 @@ export default function HomeClient({ featuredProducts, manufacturers }: HomeClie
     { n: '500+', label: t('home.stat_labs', lang) },
   ];
 
-  // Gradient backgrounds for hero slides
-  const gradients = [
-    'linear-gradient(135deg, #1A1A2E 0%, #85253B 60%, #494975 100%)',
-    'linear-gradient(135deg, #85253B 0%, #494975 50%, #6a65a0 100%)',
-    'linear-gradient(135deg, #1A1A2E 0%, #2a2755 50%, #85253B 100%)',
-  ];
+  const currentSlide = heroSlides[slideIndex] || null;
 
-  // Slide images
-  const slideImages = [
-    '/images/hero/genius_banner_front.jpg',
-    '/images/hero/p480.png',
-    '/images/hero/slide-banner.jpg',
-    '/images/hero/ocus_banner.jpg',
-  ];
+  const fallbackGradient = 'linear-gradient(135deg, #1A1A2E 0%, #85253B 60%, #494975 100%)';
+
+  function renderSlideContent() {
+    if (!currentSlide) return null;
+    const isDark = currentSlide.text_color === 'dark';
+    const isRight = currentSlide.text_align === 'right';
+    const title = lang === 'en' ? currentSlide.title_en : currentSlide.title_ko;
+    const subtitle = lang === 'en' ? currentSlide.subtitle_en : currentSlide.subtitle_ko;
+
+    const content = (
+      <div className={isDark ? 'text-black' : 'text-white'}>
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 leading-tight">
+          {title}
+        </h1>
+        {subtitle && (
+          <p className={`text-base ${isDark ? 'text-black/70' : 'text-white/80'}`}>{subtitle}</p>
+        )}
+      </div>
+    );
+
+    if (currentSlide.link_url) {
+      return (
+        <Link href={currentSlide.link_url} className={`relative h-full flex items-center px-8 md:px-12 ${isRight ? 'justify-end' : 'justify-start'}`}>
+          {content}
+        </Link>
+      );
+    }
+
+    return (
+      <div className={`relative h-full flex items-center px-8 md:px-12 ${isRight ? 'justify-end' : 'justify-start'}`}>
+        {content}
+      </div>
+    );
+  }
 
   return (
     <div>
       {/* Hero section */}
+      {heroSlides.length > 0 && (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
         {/* Hero slider — left edge aligns with All Categories selector */}
         <div className="relative h-[380px] overflow-hidden lg:ml-[228px]">
-            {slideImages[slideIndex] ? (
+            {currentSlide?.image ? (
               <div
                 className="absolute inset-0 bg-cover bg-center"
-                style={{ backgroundImage: `url('${slideImages[slideIndex]}')` }}
+                style={{ backgroundImage: `url('${currentSlide.image}')` }}
               >
                 {/* Gray overlay */}
                 <div className="absolute inset-0 bg-gray-800/20" />
@@ -88,7 +95,7 @@ export default function HomeClient({ featuredProducts, manufacturers }: HomeClie
             ) : (
               <div
                 className="absolute inset-0"
-                style={{ background: gradients[slideIndex] }}
+                style={{ background: fallbackGradient }}
               />
             )}
             <div
@@ -98,45 +105,43 @@ export default function HomeClient({ featuredProducts, manufacturers }: HomeClie
                 backgroundSize: '40px 40px',
               }}
             />
-            <div className={`relative h-full flex items-center px-8 md:px-12 ${slideIndex === 3 ? 'justify-end' : 'justify-start'}`}>
-              <div className={slideIndex === 1 || slideIndex === 2 ? 'text-black' : 'text-white'}>
-                <h1
-                  className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 leading-tight"
-                >
-                  {slides[slideIndex].title}
-                </h1>
-                <p className={`text-base ${slideIndex === 1 || slideIndex === 2 ? 'text-black/70' : 'text-white/80'}`}>{slides[slideIndex].subtitle}</p>
-              </div>
-            </div>
+            {renderSlideContent()}
             {/* Arrows */}
-            <button
-              onClick={() => setSlideIndex((i) => (i - 1 + 4) % 4)}
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/30 flex items-center justify-center text-white hover:bg-black/50 transition"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 18l-6-6 6-6" />
-              </svg>
-            </button>
-            <button
-              onClick={() => setSlideIndex((i) => (i + 1) % 4)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/30 flex items-center justify-center text-white hover:bg-black/50 transition"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 18l6-6-6-6" />
-              </svg>
-            </button>
-            {/* Dots */}
-            <div className="absolute bottom-3.5 left-1/2 -translate-x-1/2 flex gap-1.5">
-              {slides.map((_, i) => (
+            {heroSlides.length > 1 && (
+              <>
                 <button
-                  key={i}
-                  onClick={() => setSlideIndex(i)}
-                  className={`w-2.5 h-2.5 rounded-full ${i === slideIndex ? 'bg-white' : 'bg-white/40'}`}
-                />
-              ))}
-            </div>
+                  onClick={() => setSlideIndex((i) => (i - 1 + slideCount) % slideCount)}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/30 flex items-center justify-center text-white hover:bg-black/50 transition"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 18l-6-6 6-6" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setSlideIndex((i) => (i + 1) % slideCount)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/30 flex items-center justify-center text-white hover:bg-black/50 transition"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 18l6-6-6-6" />
+                  </svg>
+                </button>
+              </>
+            )}
+            {/* Dots */}
+            {heroSlides.length > 1 && (
+              <div className="absolute bottom-3.5 left-1/2 -translate-x-1/2 flex gap-1.5">
+                {heroSlides.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setSlideIndex(i)}
+                    className={`w-2.5 h-2.5 rounded-full ${i === slideIndex ? 'bg-white' : 'bg-white/40'}`}
+                  />
+                ))}
+              </div>
+            )}
         </div>
       </div>
+      )}
 
       {/* Gap */}
       <div className="h-6" />
@@ -245,9 +250,9 @@ export default function HomeClient({ featuredProducts, manufacturers }: HomeClie
             {t('home.ourPartners', lang)}
           </div>
           <div className="flex justify-center flex-wrap gap-8">
-            {manufacturers.map((m) => (
-              <span key={m.id} className="text-gray-300 text-sm font-medium">
-                {lang === 'en' ? m.name_en : m.name_ko}
+            {brands.map((b) => (
+              <span key={b.id} className="text-gray-300 text-sm font-medium">
+                {lang === 'en' ? b.name_en : b.name_ko}
               </span>
             ))}
           </div>

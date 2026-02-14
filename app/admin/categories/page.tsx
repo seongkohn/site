@@ -109,6 +109,21 @@ export default function CategoriesPage() {
   }
 
   const parentCategories = categories.filter((c) => !c.parent_id);
+  const childCategories = categories.filter((c) => c.parent_id !== null);
+
+  // Build options for parent select: top-level and their children (max 2 levels as parent)
+  function getParentOptions() {
+    const options: { value: number; label: string }[] = [];
+    for (const parent of parentCategories) {
+      if (parent.id === editingId) continue;
+      options.push({ value: parent.id, label: parent.name_en });
+      for (const child of childCategories.filter((c) => c.parent_id === parent.id)) {
+        if (child.id === editingId) continue;
+        options.push({ value: child.id, label: `— ${child.name_en}` });
+      }
+    }
+    return options;
+  }
 
   return (
     <div>
@@ -148,11 +163,9 @@ export default function CategoriesPage() {
               className="border border-gray-200 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
             >
               <option value="">-- None (top level) --</option>
-              {parentCategories
-                .filter((c) => c.id !== editingId)
-                .map((c) => (
-                  <option key={c.id} value={c.id}>{c.name_en}</option>
-                ))}
+              {getParentOptions().map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </div>
           <button
@@ -190,7 +203,11 @@ export default function CategoriesPage() {
             {categories.map((cat) => (
               <tr key={cat.id} className="border-b border-gray-100 hover:bg-gray-50">
                 <td className="px-4 py-3">
-                  {cat.parent_id && <span className="text-gray-300 mr-1">&mdash;</span>}
+                  {cat.parent_id && (
+                    <span className="text-gray-300 mr-1">
+                      {categories.find(c => c.id === cat.parent_id)?.parent_id ? '\u2014\u2014' : '\u2014'}
+                    </span>
+                  )}
                   {cat.name_en}
                 </td>
                 <td className="px-4 py-3 text-gray-600">{cat.name_ko}</td>

@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
     for (let i = 0; i < products.length; i++) {
       const product = products[i];
-      const { name_en, name_ko, sku, category_id, type_id, manufacturer_id, description_en, description_ko, is_published } = product;
+      const { name_en, name_ko, sku, category_id, type_id, brand_id, description_en, description_ko, is_published } = product;
 
       if (!name_en || !sku) {
         errors.push(`Row ${i + 1}: missing name_en or sku, skipped`);
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
         if (existing) {
           db.prepare(`
             UPDATE products
-            SET name_en = ?, name_ko = ?, slug = ?, category_id = ?, type_id = ?, manufacturer_id = ?,
+            SET name_en = ?, name_ko = ?, slug = ?, category_id = ?, type_id = ?, brand_id = ?,
                 description_en = ?, description_ko = ?, is_published = ?
             WHERE sku = ?
           `).run(
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
             slug,
             category_id ? parseInt(category_id) : null,
             type_id ? parseInt(type_id) : null,
-            manufacturer_id ? parseInt(manufacturer_id) : null,
+            brand_id ? parseInt(brand_id) : null,
             description_en || null,
             description_ko || null,
             is_published === '0' || is_published === 'false' ? 0 : 1,
@@ -61,7 +61,7 @@ export async function POST(req: Request) {
           updated++;
         } else {
           db.prepare(`
-            INSERT INTO products (name_en, name_ko, slug, sku, category_id, type_id, manufacturer_id, description_en, description_ko, is_published)
+            INSERT INTO products (name_en, name_ko, slug, sku, category_id, type_id, brand_id, description_en, description_ko, is_published)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
             name_en,
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
             sku,
             category_id ? parseInt(category_id) : null,
             type_id ? parseInt(type_id) : null,
-            manufacturer_id ? parseInt(manufacturer_id) : null,
+            brand_id ? parseInt(brand_id) : null,
             description_en || null,
             description_ko || null,
             is_published === '0' || is_published === 'false' ? 0 : 1

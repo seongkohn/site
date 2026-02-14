@@ -2,7 +2,7 @@ export type Lang = 'en' | 'ko';
 
 export const translations = {
   nav: {
-    home: { en: 'Home', ko: '홈' },
+    home: { en: 'Home', ko: '홈페이지' },
     products: { en: 'Products', ko: '제품' },
     about: { en: 'About Us', ko: '회사소개' },
     partners: { en: 'Partners', ko: '파트너' },
@@ -32,10 +32,10 @@ export const translations = {
   // Homepage category cards
   homeCats: {
     histology: { en: 'Histology', ko: '조직병리' },
-    histologyDesc: { en: 'Tissue processors, microtomes, stainers, coverslippers', ko: '조직처리기, 마이크로톰, 염색기, 커버슬리퍼' },
+    histologyDesc: { en: 'Tissue processors, microtomes, stainers, coverslippers', ko: '조직처리기, 마이크로톰, 염색기, 봉입기' },
     cytology: { en: 'Cytology', ko: '세포병리' },
-    cytologyDesc: { en: 'ThinPrep, cytocentrifuges, cell blocks', ko: '씬프렙, 사이토센트리퓨지, 셀블록' },
-    digitalPathology: { en: 'Digital Pathology', ko: '디지털 병리' },
+    cytologyDesc: { en: 'Liquid-based cytology, cytocentrifuges, cell blocks', ko: '액상세포검사, 사이토센트리퓨지, 셀블록' },
+    digitalPathology: { en: 'Digital Pathology', ko: '디지털병리' },
     digitalPathologyDesc: { en: 'Slide scanners, image analysis, AI', ko: '슬라이드 스캐너, 이미지 분석, AI' },
     instruments: { en: 'Instruments', ko: '장비' },
     instrumentsDesc: { en: 'All laboratory instruments and equipment', ko: '모든 검사실 장비 및 기기' },
@@ -116,8 +116,12 @@ export const translations = {
     send: { en: 'Send', ko: '보내기' },
     success: { en: 'Sent! We\'ll respond soon.', ko: '전송 완료!' },
     error: { en: 'Failed to send message. Please try again.', ko: '메시지 전송에 실패했습니다. 다시 시도해 주세요.' },
+    requiredName: { en: 'Please enter your name.', ko: '성함을 입력해 주세요.' },
+    requiredEmail: { en: 'Please enter your email.', ko: '이메일을 입력해 주세요.' },
+    invalidEmail: { en: 'Please enter a valid email address.', ko: '올바른 이메일 주소를 입력해 주세요.' },
+    requiredMessage: { en: 'Please enter a message.', ko: '메시지를 입력해 주세요.' },
     address: { en: 'Address', ko: '주소' },
-    addressValue: { en: '38, Hakdong-ro 50-gil, Gangnam-gu, Seoul 06100', ko: '서울 강남구 학동로 50길 38, 06100' },
+    addressValue: { en: '38, Hakdong-ro 50-gil, Gangnam-gu, Seoul 06100', ko: '서울 강남구 학동로50길 38, 06100' },
     phoneValue: { en: '+82-2-540-3311', ko: '02-540-3311' },
     emailValue: { en: 'labsales@seongkohn.com', ko: 'labsales@seongkohn.com' },
   },
@@ -126,7 +130,7 @@ export const translations = {
     contact: { en: 'CONTACT', ko: '연락처' },
     products: { en: 'PRODUCTS', ko: '제품' },
     rights: { en: 'All rights reserved.', ko: 'All rights reserved.' },
-    location: { en: 'Seoul, Korea', ko: '서울 강남구' },
+    location: { en: '38, Hakdong-ro 50-gil, Gangnam-gu, Seoul 06100, Korea', ko: '서울 강남구 학동로50길 38, 06100' },
     phone: { en: '+82-2-540-3311', ko: '02-540-3311' },
   },
   common: {

@@ -114,7 +114,7 @@ export default function ImportProductsPage() {
             className="block w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded file:border-0 file:text-sm file:bg-brand-pale file:text-brand-navy"
           />
           <p className="text-xs text-gray-400 mt-2">
-            Required columns: name_en, name_ko, sku, category_id, type_id, manufacturer_id, description_en, description_ko
+            Required columns: name_en, name_ko, sku, category_id, type_id, brand_id, description_en, description_ko
           </p>
         </div>
 
@@ -160,7 +160,7 @@ export default function ImportProductsPage() {
       <div className="bg-gray-50 rounded-lg border border-gray-200 p-6 mt-6">
         <h3 className="font-bold text-gray-800 mb-3">CSV Format Example:</h3>
         <pre className="text-xs bg-white border border-gray-200 p-4 rounded overflow-x-auto">
-{`name_en,name_ko,sku,category_id,type_id,manufacturer_id,description_en,description_ko
+{`name_en,name_ko,sku,category_id,type_id,brand_id,description_en,description_ko
 Revos,Revos자동조직처리기,A84100001A,7,1,1,"Advanced tissue processor","고급 조직처리기"
 ClearVue,ClearVue커버슬리퍼,4568,11,1,1,"Automatic coverslipper","자동 커버슬리퍼"`}
         </pre>

@@ -3,6 +3,36 @@ import { getDb } from './db';
 export function initializeSchema() {
   const db = getDb();
 
+  // Migration: rename manufacturers → brands if old table exists
+  const oldTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='manufacturers'").get();
+  if (oldTable) {
+    db.exec('ALTER TABLE manufacturers RENAME TO brands');
+    try { db.exec('ALTER TABLE brands ADD COLUMN is_featured INTEGER DEFAULT 1'); } catch {}
+    try { db.exec('ALTER TABLE products RENAME COLUMN manufacturer_id TO brand_id'); } catch {}
+  }
+
+  // Migration: add is_featured to brands if missing
+  try { db.exec('ALTER TABLE brands ADD COLUMN is_featured INTEGER DEFAULT 1'); } catch {}
+
+  // Migration: backfill brand logos if missing
+  try {
+    const brandsTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='brands'").get();
+    if (brandsTable) {
+      const logoMap: Record<string, string> = {
+        epredia: '/images/brands/epredia.jpg',
+        '3dhistech': '/images/brands/3dh.jpg',
+        hologic: '/images/brands/hologic.jpg',
+        grundium: '/images/brands/grundium.jpg',
+        milestone: '/images/brands/milestone.jpg',
+        biocartis: '/images/brands/biocartis.jpg',
+      };
+      const update = db.prepare('UPDATE brands SET logo = ? WHERE slug = ? AND logo IS NULL');
+      for (const [slug, logo] of Object.entries(logoMap)) {
+        update.run(logo, slug);
+      }
+    }
+  } catch {}
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS categories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,7 +53,7 @@ export function initializeSchema() {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
-    CREATE TABLE IF NOT EXISTS manufacturers (
+    CREATE TABLE IF NOT EXISTS brands (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name_en TEXT NOT NULL,
       name_ko TEXT NOT NULL,
@@ -32,6 +62,7 @@ export function initializeSchema() {
       website TEXT,
       description_en TEXT,
       description_ko TEXT,
+      is_featured INTEGER DEFAULT 1,
       sort_order INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
     );
@@ -44,7 +75,7 @@ export function initializeSchema() {
       sku TEXT NOT NULL,
       category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
       type_id INTEGER REFERENCES types(id) ON DELETE SET NULL,
-      manufacturer_id INTEGER REFERENCES manufacturers(id) ON DELETE SET NULL,
+      brand_id INTEGER REFERENCES brands(id) ON DELETE SET NULL,
       description_en TEXT,
       description_ko TEXT,
       features_en TEXT,
@@ -54,6 +85,15 @@ export function initializeSchema() {
       is_featured INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS product_variants (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      name_en TEXT NOT NULL,
+      name_ko TEXT NOT NULL,
+      sku TEXT NOT NULL,
+      sort_order INTEGER DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS product_related (
@@ -85,7 +125,47 @@ export function initializeSchema() {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS hero_slides (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title_en TEXT NOT NULL,
+      title_ko TEXT NOT NULL,
+      subtitle_en TEXT,
+      subtitle_ko TEXT,
+      image TEXT,
+      link_url TEXT,
+      text_color TEXT DEFAULT 'light',
+      text_align TEXT DEFAULT 'left',
+      is_active INTEGER DEFAULT 1,
+      sort_order INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS product_images (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      url TEXT NOT NULL,
+      type TEXT DEFAULT 'image',
+      alt_en TEXT,
+      alt_ko TEXT,
+      variant_id INTEGER REFERENCES product_variants(id) ON DELETE SET NULL,
+      sort_order INTEGER DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS product_specs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      key_en TEXT NOT NULL,
+      key_ko TEXT NOT NULL,
+      value_en TEXT NOT NULL,
+      value_ko TEXT NOT NULL,
+      sort_order INTEGER DEFAULT 0
+    );
   `);
+
+  // Migration: add detail_en/detail_ko to products if missing
+  try { db.exec('ALTER TABLE products ADD COLUMN detail_en TEXT'); } catch {}
+  try { db.exec('ALTER TABLE products ADD COLUMN detail_ko TEXT'); } catch {}
 
   // FTS5 virtual table for product search
   db.exec(`

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Manufacturer } from '@/lib/types';
+import type { Brand } from '@/lib/types';
 
 const emptyForm = {
   name_en: '',
@@ -10,11 +10,12 @@ const emptyForm = {
   description_en: '',
   description_ko: '',
   logo: '',
+  is_featured: true,
   sort_order: '',
 };
 
-export default function ManufacturersPage() {
-  const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
+export default function BrandsPage() {
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -22,13 +23,13 @@ export default function ManufacturersPage() {
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-    fetchManufacturers();
+    fetchBrands();
   }, []);
 
-  async function fetchManufacturers() {
+  async function fetchBrands() {
     try {
-      const res = await fetch('/api/manufacturers');
-      setManufacturers(await res.json());
+      const res = await fetch('/api/brands');
+      setBrands(await res.json());
     } catch {
       // error
     }
@@ -62,17 +63,18 @@ export default function ManufacturersPage() {
     try {
       const payload = {
         ...form,
+        is_featured: form.is_featured ? 1 : 0,
         sort_order: form.sort_order ? parseInt(form.sort_order) : null,
       };
 
       if (editingId) {
-        await fetch(`/api/manufacturers/${editingId}`, {
+        await fetch(`/api/brands/${editingId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
       } else {
-        await fetch('/api/manufacturers', {
+        await fetch('/api/brands', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -81,23 +83,24 @@ export default function ManufacturersPage() {
 
       setForm(emptyForm);
       setEditingId(null);
-      await fetchManufacturers();
+      await fetchBrands();
     } catch {
-      alert('Failed to save manufacturer');
+      alert('Failed to save brand');
     }
     setSaving(false);
   }
 
-  function startEdit(mfr: Manufacturer) {
-    setEditingId(mfr.id);
+  function startEdit(brand: Brand) {
+    setEditingId(brand.id);
     setForm({
-      name_en: mfr.name_en,
-      name_ko: mfr.name_ko,
-      website: mfr.website || '',
-      description_en: mfr.description_en || '',
-      description_ko: mfr.description_ko || '',
-      logo: mfr.logo || '',
-      sort_order: mfr.sort_order ? String(mfr.sort_order) : '',
+      name_en: brand.name_en,
+      name_ko: brand.name_ko,
+      website: brand.website || '',
+      description_en: brand.description_en || '',
+      description_ko: brand.description_ko || '',
+      logo: brand.logo || '',
+      is_featured: !!brand.is_featured,
+      sort_order: brand.sort_order ? String(brand.sort_order) : '',
     });
   }
 
@@ -107,12 +110,12 @@ export default function ManufacturersPage() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('Delete this manufacturer?')) return;
+    if (!confirm('Delete this brand?')) return;
     try {
-      await fetch(`/api/manufacturers/${id}`, { method: 'DELETE' });
-      await fetchManufacturers();
+      await fetch(`/api/brands/${id}`, { method: 'DELETE' });
+      await fetchBrands();
     } catch {
-      alert('Failed to delete manufacturer');
+      alert('Failed to delete brand');
     }
   }
 
@@ -121,9 +124,9 @@ export default function ManufacturersPage() {
       await fetch('/api/reorder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table: 'manufacturers', id, direction }),
+        body: JSON.stringify({ table: 'brands', id, direction }),
       });
-      await fetchManufacturers();
+      await fetchBrands();
     } catch {
       // error
     }
@@ -215,6 +218,17 @@ export default function ManufacturersPage() {
               )}
             </div>
           </div>
+          <div className="flex items-center gap-6">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.is_featured}
+                onChange={(e) => setForm({ ...form, is_featured: e.target.checked })}
+                className="rounded border-gray-300"
+              />
+              Show on website (Partners page, homepage)
+            </label>
+          </div>
           <div className="flex items-center gap-3">
             <button
               type="submit"
@@ -241,27 +255,35 @@ export default function ManufacturersPage() {
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Name EN</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Name KO</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Website</th>
+              <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase">Featured</th>
               <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase">Order</th>
               <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {manufacturers.map((mfr) => (
-              <tr key={mfr.id} className="border-b border-gray-100 hover:bg-gray-50">
+            {brands.map((brand) => (
+              <tr key={brand.id} className="border-b border-gray-100 hover:bg-gray-50">
                 <td className="px-4 py-3">
-                  {mfr.logo ? (
-                    <img src={mfr.logo} alt={mfr.name_en} className="w-8 h-8 object-contain" />
+                  {brand.logo ? (
+                    <img src={brand.logo} alt={brand.name_en} className="w-8 h-8 object-contain" />
                   ) : (
                     <span className="text-gray-300 text-xs">--</span>
                   )}
                 </td>
-                <td className="px-4 py-3 font-medium">{mfr.name_en}</td>
-                <td className="px-4 py-3 text-gray-600">{mfr.name_ko}</td>
-                <td className="px-4 py-3 text-xs text-gray-400">{mfr.website || '--'}</td>
+                <td className="px-4 py-3 font-medium">{brand.name_en}</td>
+                <td className="px-4 py-3 text-gray-600">{brand.name_ko}</td>
+                <td className="px-4 py-3 text-xs text-gray-400">{brand.website || '--'}</td>
+                <td className="px-4 py-3 text-center">
+                  {brand.is_featured ? (
+                    <span className="text-green-600 text-xs font-medium">Yes</span>
+                  ) : (
+                    <span className="text-gray-400 text-xs">No</span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-center">
                   <div className="flex items-center justify-center gap-1">
                     <button
-                      onClick={() => handleMove(mfr.id, 'up')}
+                      onClick={() => handleMove(brand.id, 'up')}
                       className="p-1 text-gray-400 hover:text-brand-navy rounded hover:bg-gray-100"
                       title="Move up"
                     >
@@ -270,7 +292,7 @@ export default function ManufacturersPage() {
                       </svg>
                     </button>
                     <button
-                      onClick={() => handleMove(mfr.id, 'down')}
+                      onClick={() => handleMove(brand.id, 'down')}
                       className="p-1 text-gray-400 hover:text-brand-navy rounded hover:bg-gray-100"
                       title="Move down"
                     >
@@ -281,19 +303,19 @@ export default function ManufacturersPage() {
                   </div>
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <button onClick={() => startEdit(mfr)} className="text-brand-purple hover:text-brand-magenta text-xs mr-3">
+                  <button onClick={() => startEdit(brand)} className="text-brand-purple hover:text-brand-magenta text-xs mr-3">
                     Edit
                   </button>
-                  <button onClick={() => handleDelete(mfr.id)} className="text-red-500 hover:text-red-700 text-xs">
+                  <button onClick={() => handleDelete(brand.id)} className="text-red-500 hover:text-red-700 text-xs">
                     Delete
                   </button>
                 </td>
               </tr>
             ))}
-            {manufacturers.length === 0 && (
+            {brands.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">
-                  No manufacturers yet.
+                <td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">
+                  No brands yet.
                 </td>
               </tr>
             )}

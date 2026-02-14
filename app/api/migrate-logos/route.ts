@@ -7,17 +7,17 @@ export async function GET() {
   const db = getDb();
 
   // Check current logo paths
-  const before = db.prepare('SELECT id, name_en, logo FROM manufacturers WHERE logo IS NOT NULL').all() as any[];
+  const before = db.prepare('SELECT id, name_en, logo FROM brands WHERE logo IS NOT NULL').all() as any[];
 
   // Update paths
   const updated = db.prepare(`
-    UPDATE manufacturers
+    UPDATE brands
     SET logo = REPLACE(logo, '/logos/', '/images/brands/')
     WHERE logo LIKE '/logos/%'
   `).run();
 
   // Check after
-  const after = db.prepare('SELECT id, name_en, logo FROM manufacturers WHERE logo IS NOT NULL').all() as any[];
+  const after = db.prepare('SELECT id, name_en, logo FROM brands WHERE logo IS NOT NULL').all() as any[];
 
   return NextResponse.json({
     message: `Updated ${updated.changes} logo paths`,

@@ -40,7 +40,6 @@ export default function SearchBar() {
     if (searchQuery.trim()) params.set('search', searchQuery.trim());
     const qs = params.toString();
     router.push(qs ? `/products?${qs}` : '/products');
-    setSearchQuery('');
   }
 
   // Group categories: parents first, then children indented
@@ -54,11 +53,19 @@ export default function SearchBar() {
         value: String(parent.id),
         label: lang === 'en' ? parent.name_en : parent.name_ko,
       });
-      for (const child of childCategories.filter((c) => c.parent_id === parent.id)) {
+      const children = childCategories.filter((c) => c.parent_id === parent.id);
+      for (const child of children) {
         options.push({
           value: String(child.id),
           label: `— ${lang === 'en' ? child.name_en : child.name_ko}`,
         });
+        const grandchildren = childCategories.filter((c) => c.parent_id === child.id);
+        for (const grandchild of grandchildren) {
+          options.push({
+            value: String(grandchild.id),
+            label: `—— ${lang === 'en' ? grandchild.name_en : grandchild.name_ko}`,
+          });
+        }
       }
     }
     return options;

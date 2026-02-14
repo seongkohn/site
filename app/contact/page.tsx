@@ -9,13 +9,33 @@ export default function ContactPage() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phone: '',
     organization: '',
     message: '',
   });
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function validate() {
+    const errs: Record<string, string> = {};
+    if (!formData.name.trim()) errs.name = t('contact.requiredName', lang);
+    if (!formData.email.trim()) {
+      errs.email = t('contact.requiredEmail', lang);
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errs.email = t('contact.invalidEmail', lang);
+    }
+    if (!formData.message.trim()) errs.message = t('contact.requiredMessage', lang);
+    return errs;
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
+    setErrors({});
     setStatus('sending');
     try {
       const res = await fetch('/api/contact', {
@@ -25,7 +45,7 @@ export default function ContactPage() {
       });
       if (res.ok) {
         setStatus('success');
-        setFormData({ name: '', email: '', organization: '', message: '' });
+        setFormData({ name: '', email: '', phone: '', organization: '', message: '' });
       } else {
         setStatus('error');
       }
@@ -40,7 +60,7 @@ export default function ContactPage() {
       <section
         className="py-20 text-center text-white"
         style={{
-          background: 'linear-gradient(135deg, #1A1A2E 0%, #85253B 100%)',
+          background: 'linear-gradient(135deg, #1A1A2E 0%, #353360 45%, #85253B 100%)',
         }}
       >
         <div className="max-w-3xl mx-auto px-4">
@@ -108,11 +128,11 @@ export default function ContactPage() {
                 </label>
                 <input
                   type="text"
-                  required
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-magenta focus:border-transparent"
+                  onChange={(e) => { setFormData({ ...formData, name: e.target.value }); setErrors((prev) => { const { name, ...rest } = prev; return rest; }); }}
+                  className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-magenta focus:border-transparent ${errors.name ? 'border-red-400' : 'border-gray-300'}`}
                 />
+                {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
               </div>
 
               <div>
@@ -120,10 +140,22 @@ export default function ContactPage() {
                   {t('contact.email', lang)}
                 </label>
                 <input
-                  type="email"
-                  required
+                  type="text"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) => { setFormData({ ...formData, email: e.target.value }); setErrors((prev) => { const { email, ...rest } = prev; return rest; }); }}
+                  className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-magenta focus:border-transparent ${errors.email ? 'border-red-400' : 'border-gray-300'}`}
+                />
+                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('contact.phone', lang)}
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-magenta focus:border-transparent"
                 />
               </div>
@@ -145,12 +177,12 @@ export default function ContactPage() {
                   {t('contact.message', lang)}
                 </label>
                 <textarea
-                  required
                   rows={5}
                   value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-magenta focus:border-transparent resize-vertical"
+                  onChange={(e) => { setFormData({ ...formData, message: e.target.value }); setErrors((prev) => { const { message, ...rest } = prev; return rest; }); }}
+                  className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-magenta focus:border-transparent resize-vertical ${errors.message ? 'border-red-400' : 'border-gray-300'}`}
                 />
+                {errors.message && <p className="text-red-500 text-xs mt-1">{errors.message}</p>}
               </div>
 
               <button

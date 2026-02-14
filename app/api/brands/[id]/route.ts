@@ -28,21 +28,21 @@ export async function PUT(
   const slug = body.name_en ? slugify(body.name_en, { lower: true, strict: true }) : undefined;
 
   db.prepare(`
-    UPDATE manufacturers SET
+    UPDATE brands SET
       name_en = ?, name_ko = ?, slug = ?, logo = ?, website = ?,
-      description_en = ?, description_ko = ?, sort_order = ?
+      description_en = ?, description_ko = ?, is_featured = ?, sort_order = ?
     WHERE id = ?
   `).run(
     body.name_en, body.name_ko, slug || body.slug,
     body.logo || null, body.website || null,
     body.description_en || null, body.description_ko || null,
+    body.is_featured !== undefined ? (body.is_featured ? 1 : 0) : 1,
     body.sort_order || 0,
     parseInt(id, 10)
   );
 
-  const updated = db.prepare('SELECT * FROM manufacturers WHERE id = ?').get(parseInt(id, 10));
+  const updated = db.prepare('SELECT * FROM brands WHERE id = ?').get(parseInt(id, 10));
 
-  // Revalidate to refresh components that list manufacturers
   revalidatePath('/', 'layout');
 
   return NextResponse.json(updated);
@@ -61,9 +61,8 @@ export async function DELETE(
   const db = getDb();
   const { id } = await params;
 
-  db.prepare('DELETE FROM manufacturers WHERE id = ?').run(parseInt(id, 10));
+  db.prepare('DELETE FROM brands WHERE id = ?').run(parseInt(id, 10));
 
-  // Revalidate to refresh components that list manufacturers
   revalidatePath('/', 'layout');
 
   return NextResponse.json({ success: true });

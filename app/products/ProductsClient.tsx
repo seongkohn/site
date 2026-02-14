@@ -5,16 +5,16 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/components/LanguageProvider';
 import { t } from '@/lib/i18n';
 import ProductCard from '@/components/ProductCard';
-import type { Product, Category, Type, Manufacturer } from '@/lib/types';
+import type { Product, Category, Type, Brand } from '@/lib/types';
 
 interface CategoryWithChildren extends Category {
-  children: Category[];
+  children: CategoryWithChildren[];
 }
 
 interface Props {
   categories: CategoryWithChildren[];
   types: Type[];
-  manufacturers: Manufacturer[];
+  brands: Brand[];
   initialProducts: Product[];
   initialTotal: number;
   initialPage: number;
@@ -24,7 +24,7 @@ interface Props {
 export default function ProductsClient({
   categories,
   types,
-  manufacturers,
+  brands,
   initialProducts,
   initialTotal,
   initialPage,
@@ -44,13 +44,11 @@ export default function ProductsClient({
 
   const activeCategory = searchParams.get('category') || '';
   const activeType = searchParams.get('type') || '';
-  const activeManufacturer = searchParams.get('manufacturer') || '';
+  const activeBrand = searchParams.get('brand') || '';
   const activeSearch = searchParams.get('search') || '';
   const activePage = searchParams.get('page') || '1';
 
-  const [searchInput, setSearchInput] = useState(activeSearch);
-
-  // Expand parent category if a subcategory is active
+  // Expand ancestor categories if a subcategory is active
   useEffect(() => {
     if (activeCategory) {
       const catId = parseInt(activeCategory, 10);
@@ -58,6 +56,12 @@ export default function ProductsClient({
         if (parent.children.some(c => c.id === catId)) {
           setExpandedCategories(prev => new Set(prev).add(parent.id));
           break;
+        }
+        for (const child of parent.children) {
+          if (child.children.some(c => c.id === catId)) {
+            setExpandedCategories(prev => new Set([...prev, parent.id, child.id]));
+            break;
+          }
         }
       }
     }
@@ -105,12 +109,12 @@ export default function ProductsClient({
     const params = new URLSearchParams();
     if (activeCategory) params.set('category', activeCategory);
     if (activeType) params.set('type', activeType);
-    if (activeManufacturer) params.set('manufacturer', activeManufacturer);
+    if (activeBrand) params.set('brand', activeBrand);
     if (activeSearch) params.set('search', activeSearch);
     if (activePage && activePage !== '1') params.set('page', activePage);
 
     fetchProducts(`/products?${params.toString()}`);
-  }, [activeCategory, activeType, activeManufacturer, activeSearch, activePage, fetchProducts]);
+  }, [activeCategory, activeType, activeBrand, activeSearch, activePage, fetchProducts]);
 
   function handleFilter(key: string, value: string) {
     const currentValue = searchParams.get(key) || '';
@@ -119,13 +123,7 @@ export default function ProductsClient({
     setMobileFiltersOpen(false);
   }
 
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    router.push(buildUrl({ search: searchInput }), { scroll: false });
-  }
-
   function handleClearFilters() {
-    setSearchInput('');
     router.push('/products', { scroll: false });
   }
 
@@ -141,42 +139,22 @@ export default function ProductsClient({
     });
   }
 
-  const hasActiveFilters = activeCategory || activeType || activeManufacturer || activeSearch;
+  const hasActiveFilters = activeCategory || activeType || activeBrand || activeSearch;
 
   // Sidebar content used both in desktop and mobile
   const sidebarContent = (
     <div className="space-y-6">
-      {/* Search */}
-      <form onSubmit={handleSearch}>
-        <div className="relative">
-          <input
-            type="text"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder={t('products.searchAll', lang)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-brand-magenta/30 focus:border-brand-magenta"
-          />
+      {/* Clear filters — always reserves space to avoid layout shift */}
+      <div className="h-5">
+        {hasActiveFilters && (
           <button
-            type="submit"
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brand-magenta"
-            aria-label="Search"
+            onClick={handleClearFilters}
+            className="text-xs text-brand-magenta hover:underline"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            {t('products.clearFilters', lang)}
           </button>
-        </div>
-      </form>
-
-      {/* Clear filters */}
-      {hasActiveFilters && (
-        <button
-          onClick={handleClearFilters}
-          className="text-xs text-brand-magenta hover:underline"
-        >
-          {t('products.clearFilters', lang)}
-        </button>
-      )}
+        )}
+      </div>
 
       {/* Category filter */}
       <div>
@@ -228,17 +206,54 @@ export default function ProductsClient({
               {cat.children.length > 0 && expandedCategories.has(cat.id) && (
                 <div className="ml-3 space-y-0.5">
                   {cat.children.map((child) => (
-                    <button
-                      key={child.id}
-                      onClick={() => handleFilter('category', String(child.id))}
-                      className={`w-full text-left px-3 py-1.5 rounded text-sm transition ${
-                        activeCategory === String(child.id)
-                          ? 'bg-brand-pale text-brand-magenta font-medium'
-                          : 'text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      {lang === 'en' ? child.name_en : child.name_ko}
-                    </button>
+                    <div key={child.id}>
+                      <button
+                        onClick={() => {
+                          if (child.children.length > 0) {
+                            toggleCategoryExpand(child.id);
+                          }
+                          handleFilter('category', String(child.id));
+                        }}
+                        className={`w-full text-left px-3 py-1.5 rounded text-sm transition flex items-center justify-between ${
+                          activeCategory === String(child.id)
+                            ? 'bg-brand-pale text-brand-magenta font-medium'
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span>{lang === 'en' ? child.name_en : child.name_ko}</span>
+                        {child.children.length > 0 && (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className={`h-3.5 w-3.5 text-gray-400 transition-transform ${
+                              expandedCategories.has(child.id) ? 'rotate-90' : ''
+                            }`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                          </svg>
+                        )}
+                      </button>
+                      {child.children.length > 0 && expandedCategories.has(child.id) && (
+                        <div className="ml-3 space-y-0.5">
+                          {child.children.map((grandchild) => (
+                            <button
+                              key={grandchild.id}
+                              onClick={() => handleFilter('category', String(grandchild.id))}
+                              className={`w-full text-left px-3 py-1.5 rounded text-sm transition ${
+                                activeCategory === String(grandchild.id)
+                                  ? 'bg-brand-pale text-brand-magenta font-medium'
+                                  : 'text-gray-500 hover:bg-gray-50'
+                              }`}
+                            >
+                              {lang === 'en' ? grandchild.name_en : grandchild.name_ko}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}
@@ -279,33 +294,33 @@ export default function ProductsClient({
         </div>
       </div>
 
-      {/* Manufacturer filter */}
+      {/* Brand filter */}
       <div>
         <h3 className="text-xs font-semibold tracking-wider text-gray-500 uppercase mb-2">
           {t('products.manufacturer', lang)}
         </h3>
         <div className="space-y-0.5">
           <button
-            onClick={() => handleFilter('manufacturer', '')}
+            onClick={() => handleFilter('brand', '')}
             className={`w-full text-left px-3 py-1.5 rounded text-sm transition ${
-              !activeManufacturer
+              !activeBrand
                 ? 'bg-brand-pale text-brand-magenta font-medium'
                 : 'text-gray-700 hover:bg-gray-50'
             }`}
           >
             {t('products.all', lang)}
           </button>
-          {manufacturers.map((mfr) => (
+          {brands.map((brand) => (
             <button
-              key={mfr.id}
-              onClick={() => handleFilter('manufacturer', String(mfr.id))}
+              key={brand.id}
+              onClick={() => handleFilter('brand', String(brand.id))}
               className={`w-full text-left px-3 py-1.5 rounded text-sm transition ${
-                activeManufacturer === String(mfr.id)
+                activeBrand === String(brand.id)
                   ? 'bg-brand-pale text-brand-magenta font-medium'
                   : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
-              {lang === 'en' ? mfr.name_en : mfr.name_ko}
+              {lang === 'en' ? brand.name_en : brand.name_ko}
             </button>
           ))}
         </div>

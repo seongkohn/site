@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { getDb } from '@/lib/db';
 import { initializeSchema } from '@/lib/schema';
 import { seedDatabase } from '@/lib/seed';
-import type { Product } from '@/lib/types';
+import type { Product, Variant, ProductImage, ProductSpec } from '@/lib/types';
 import type { Metadata } from 'next';
 import ProductDetailClient from './ProductDetailClient';
 
@@ -15,11 +15,11 @@ function getProduct(slug: string) {
     SELECT p.*,
            c.name_en as category_name_en, c.name_ko as category_name_ko,
            t.name_en as type_name_en, t.name_ko as type_name_ko,
-           m.name_en as manufacturer_name_en, m.name_ko as manufacturer_name_ko
+           m.name_en as brand_name_en, m.name_ko as brand_name_ko
     FROM products p
     LEFT JOIN categories c ON p.category_id = c.id
     LEFT JOIN types t ON p.type_id = t.id
-    LEFT JOIN manufacturers m ON p.manufacturer_id = m.id
+    LEFT JOIN brands m ON p.brand_id = m.id
     WHERE p.slug = ? AND p.is_published = 1
   `).get(slug) as Product | undefined;
 
@@ -30,16 +30,28 @@ function getProduct(slug: string) {
     SELECT p.*,
            c.name_en as category_name_en, c.name_ko as category_name_ko,
            t.name_en as type_name_en, t.name_ko as type_name_ko,
-           m.name_en as manufacturer_name_en, m.name_ko as manufacturer_name_ko
+           m.name_en as brand_name_en, m.name_ko as brand_name_ko
     FROM product_related pr
     JOIN products p ON pr.related_id = p.id
     LEFT JOIN categories c ON p.category_id = c.id
     LEFT JOIN types t ON p.type_id = t.id
-    LEFT JOIN manufacturers m ON p.manufacturer_id = m.id
+    LEFT JOIN brands m ON p.brand_id = m.id
     WHERE pr.product_id = ? AND p.is_published = 1
   `).all(product.id) as Product[];
 
-  return { product, relatedProducts };
+  const variants = db.prepare(
+    'SELECT * FROM product_variants WHERE product_id = ? ORDER BY sort_order, id'
+  ).all(product.id) as Variant[];
+
+  const images = db.prepare(
+    'SELECT * FROM product_images WHERE product_id = ? ORDER BY sort_order, id'
+  ).all(product.id) as ProductImage[];
+
+  const specs = db.prepare(
+    'SELECT * FROM product_specs WHERE product_id = ? ORDER BY sort_order, id'
+  ).all(product.id) as ProductSpec[];
+
+  return { product, relatedProducts, variants, images, specs };
 }
 
 export async function generateMetadata({
@@ -87,6 +99,9 @@ export default async function ProductDetailPage({
     <ProductDetailClient
       product={data.product}
       relatedProducts={data.relatedProducts}
+      variants={data.variants}
+      images={data.images}
+      specs={data.specs}
     />
   );
 }

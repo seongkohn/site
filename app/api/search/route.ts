@@ -40,23 +40,36 @@ export async function GET(request: NextRequest) {
     }
 
     const ids = ftsRows.map(r => r.rowid);
+
+    // Also find products whose variants match the search SKU
+    const variantMatches = db.prepare(`
+      SELECT DISTINCT product_id FROM product_variants WHERE sku LIKE ?
+    `).all(`%${sanitized}%`) as { product_id: number }[];
+    for (const vm of variantMatches) {
+      if (!ids.includes(vm.product_id)) ids.push(vm.product_id);
+    }
+
+    if (ids.length === 0) {
+      return NextResponse.json({ results: [] });
+    }
+
     const placeholders = ids.map(() => '?').join(',');
 
     const results = db.prepare(`
       SELECT p.*,
              c.name_en as category_name_en, c.name_ko as category_name_ko,
              t.name_en as type_name_en, t.name_ko as type_name_ko,
-             m.name_en as manufacturer_name_en, m.name_ko as manufacturer_name_ko
+             m.name_en as brand_name_en, m.name_ko as brand_name_ko
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
       LEFT JOIN types t ON p.type_id = t.id
-      LEFT JOIN manufacturers m ON p.manufacturer_id = m.id
+      LEFT JOIN brands m ON p.brand_id = m.id
       WHERE p.id IN (${placeholders}) AND p.is_published = 1
     `).all(...ids) as Product[];
 
-    // Preserve FTS rank order
+    // Preserve FTS rank order for FTS matches, append variant-only matches at end
     const orderMap = new Map(ftsRows.map((r, i) => [r.rowid, i]));
-    results.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
+    results.sort((a, b) => (orderMap.get(a.id) ?? ftsRows.length) - (orderMap.get(b.id) ?? ftsRows.length));
 
     return NextResponse.json({ results });
   } catch (error) {

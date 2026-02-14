@@ -12,7 +12,7 @@ export default function AboutClient() {
       <section
         className="py-20 text-center text-white"
         style={{
-          background: 'linear-gradient(135deg, #1A1A2E 0%, #85253B 100%)',
+          background: 'linear-gradient(135deg, #1A1A2E 0%, #353360 45%, #85253B 100%)',
         }}
       >
         <div className="max-w-3xl mx-auto px-4">

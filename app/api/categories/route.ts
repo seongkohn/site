@@ -31,19 +31,26 @@ export async function GET() {
     ORDER BY c.sort_order, c.name_en
   `).all() as any[];
 
-  // Interleave: each parent followed by its children
+  // Interleave: parent → child → grandchild
   const categories: any[] = [];
   for (const parent of parents) {
     categories.push(parent);
     for (const child of children) {
       if (child.parent_id === parent.id) {
         categories.push(child);
+        // Add grandchildren under this child
+        for (const grandchild of children) {
+          if (grandchild.parent_id === child.id) {
+            categories.push(grandchild);
+          }
+        }
       }
     }
   }
   // Add any orphaned children (parent deleted)
+  const listedIds = new Set(categories.map((c) => c.id));
   for (const child of children) {
-    if (!parents.some((p) => p.id === child.parent_id)) {
+    if (!listedIds.has(child.id)) {
       categories.push(child);
     }
   }

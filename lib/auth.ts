@@ -2,7 +2,12 @@ import bcryptjs from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+const JWT_SECRET: string = process.env.JWT_SECRET || (() => {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET environment variable is required in production');
+  }
+  return 'dev-only-secret-not-for-production';
+})();
 const COOKIE_NAME = 'admin_token';
 
 export function hashPassword(password: string): string {

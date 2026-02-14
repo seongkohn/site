@@ -15,8 +15,8 @@ export async function GET() {
   ensureDb();
   const db = getDb();
 
-  const manufacturers = db.prepare('SELECT * FROM manufacturers ORDER BY sort_order, name_en').all();
-  return NextResponse.json(manufacturers);
+  const brands = db.prepare('SELECT * FROM brands ORDER BY sort_order, name_en').all();
+  return NextResponse.json(brands);
 }
 
 export async function POST(request: NextRequest) {
@@ -36,19 +36,19 @@ export async function POST(request: NextRequest) {
   const slug = slugify(body.name_en, { lower: true, strict: true });
 
   const result = db.prepare(`
-    INSERT INTO manufacturers (name_en, name_ko, slug, logo, website, description_en, description_ko, sort_order)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO brands (name_en, name_ko, slug, logo, website, description_en, description_ko, is_featured, sort_order)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     body.name_en, body.name_ko, slug,
     body.logo || null, body.website || null,
     body.description_en || null, body.description_ko || null,
+    body.is_featured !== undefined ? (body.is_featured ? 1 : 0) : 1,
     body.sort_order || 0
   );
 
-  const manufacturer = db.prepare('SELECT * FROM manufacturers WHERE id = ?').get(result.lastInsertRowid);
+  const brand = db.prepare('SELECT * FROM brands WHERE id = ?').get(result.lastInsertRowid);
 
-  // Revalidate to refresh components that list manufacturers
   revalidatePath('/', 'layout');
 
-  return NextResponse.json(manufacturer, { status: 201 });
+  return NextResponse.json(brand, { status: 201 });
 }

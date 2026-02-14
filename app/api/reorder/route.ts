@@ -4,7 +4,7 @@ import { initializeSchema } from '@/lib/schema';
 import { seedDatabase } from '@/lib/seed';
 import { getAdminUser } from '@/lib/auth';
 
-const ALLOWED_TABLES = ['categories', 'types', 'manufacturers'] as const;
+const ALLOWED_TABLES = ['categories', 'types', 'brands', 'hero_slides'] as const;
 type TableName = (typeof ALLOWED_TABLES)[number];
 
 export async function POST(request: NextRequest) {

@@ -3,13 +3,13 @@
 import { useLanguage } from '@/components/LanguageProvider';
 import { t } from '@/lib/i18n';
 import PartnerCard from '@/components/PartnerCard';
-import type { Manufacturer } from '@/lib/types';
+import type { Brand } from '@/lib/types';
 
 interface PartnersClientProps {
-  manufacturers: Manufacturer[];
+  brands: Brand[];
 }
 
-export default function PartnersClient({ manufacturers }: PartnersClientProps) {
+export default function PartnersClient({ brands }: PartnersClientProps) {
   const { lang } = useLanguage();
 
   return (
@@ -18,7 +18,7 @@ export default function PartnersClient({ manufacturers }: PartnersClientProps) {
       <section
         className="py-20 text-center text-white"
         style={{
-          background: 'linear-gradient(135deg, #1A1A2E 0%, #85253B 100%)',
+          background: 'linear-gradient(135deg, #1A1A2E 0%, #353360 45%, #85253B 100%)',
         }}
       >
         <div className="max-w-3xl mx-auto px-4">
@@ -37,8 +37,8 @@ export default function PartnersClient({ manufacturers }: PartnersClientProps) {
       <section className="py-16 px-4">
         <div className="max-w-5xl mx-auto">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {manufacturers.map((manufacturer) => (
-              <PartnerCard key={manufacturer.id} manufacturer={manufacturer} />
+            {brands.map((brand) => (
+              <PartnerCard key={brand.id} brand={brand} />
             ))}
           </div>
         </div>

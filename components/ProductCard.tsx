@@ -10,7 +10,7 @@ export default function ProductCard({ product }: { product: Product }) {
 
   const name = lang === 'en' ? product.name_en : product.name_ko;
   const categoryName = lang === 'en' ? product.category_name_en : product.category_name_ko;
-  const manufacturerName = lang === 'en' ? product.manufacturer_name_en : product.manufacturer_name_ko;
+  const brandName = lang === 'en' ? product.brand_name_en : product.brand_name_ko;
 
   return (
     <Link
@@ -35,10 +35,9 @@ export default function ProductCard({ product }: { product: Product }) {
         <h3 className="mt-2 font-semibold text-brand-navy text-sm leading-tight group-hover:text-brand-magenta transition">
           {name}
         </h3>
-        {manufacturerName && (
-          <p className="mt-1 text-xs text-gray-500">{manufacturerName}</p>
+        {brandName && (
+          <p className="mt-1 text-xs text-gray-500">{brandName}</p>
         )}
-        <p className="mt-1 text-xs text-gray-400">SKU: {product.sku}</p>
       </div>
     </Link>
   );

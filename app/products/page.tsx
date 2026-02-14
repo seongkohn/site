@@ -1,11 +1,11 @@
 import { getDb } from '@/lib/db';
 import { initializeSchema } from '@/lib/schema';
 import { seedDatabase } from '@/lib/seed';
-import type { Product, Category, Type, Manufacturer } from '@/lib/types';
+import type { Product, Category, Type, Brand } from '@/lib/types';
 import ProductsClient from './ProductsClient';
 
 interface CategoryWithChildren extends Category {
-  children: Category[];
+  children: CategoryWithChildren[];
 }
 
 function getData(searchParams: Record<string, string | undefined>) {
@@ -21,16 +21,19 @@ function getData(searchParams: Record<string, string | undefined>) {
   const parentCategories = allCategories.filter(c => c.parent_id === null);
   const categoriesWithChildren: CategoryWithChildren[] = parentCategories.map(parent => ({
     ...parent,
-    children: allCategories.filter(c => c.parent_id === parent.id),
+    children: allCategories.filter(c => c.parent_id === parent.id).map(child => ({
+      ...child,
+      children: allCategories.filter(c => c.parent_id === child.id),
+    })),
   }));
 
   const types = db.prepare(`
     SELECT * FROM types ORDER BY sort_order
   `).all() as Type[];
 
-  const manufacturers = db.prepare(`
-    SELECT * FROM manufacturers ORDER BY sort_order
-  `).all() as Manufacturer[];
+  const brands = db.prepare(`
+    SELECT * FROM brands ORDER BY sort_order
+  `).all() as Brand[];
 
   // Build initial products query
   const conditions: string[] = ['p.is_published = 1'];
@@ -38,7 +41,7 @@ function getData(searchParams: Record<string, string | undefined>) {
 
   const categoryId = searchParams.category;
   const typeId = searchParams.type;
-  const manufacturerId = searchParams.manufacturer;
+  const brandId = searchParams.brand;
   const search = searchParams.search;
   const page = Math.max(1, parseInt(searchParams.page || '1', 10));
   const limit = 12;
@@ -55,8 +58,8 @@ function getData(searchParams: Record<string, string | undefined>) {
 
   if (categoryId) {
     const catId = parseInt(categoryId, 10);
-    conditions.push(`(p.category_id = ? OR p.category_id IN (SELECT id FROM categories WHERE parent_id = ?))`);
-    params.push(catId, catId);
+    conditions.push(`(p.category_id = ? OR p.category_id IN (SELECT id FROM categories WHERE parent_id = ?) OR p.category_id IN (SELECT id FROM categories WHERE parent_id IN (SELECT id FROM categories WHERE parent_id = ?)))`);
+    params.push(catId, catId, catId);
   }
 
   if (typeId) {
@@ -64,9 +67,9 @@ function getData(searchParams: Record<string, string | undefined>) {
     params.push(parseInt(typeId, 10));
   }
 
-  if (manufacturerId) {
-    conditions.push('p.manufacturer_id = ?');
-    params.push(parseInt(manufacturerId, 10));
+  if (brandId) {
+    conditions.push('p.brand_id = ?');
+    params.push(parseInt(brandId, 10));
   }
 
   const whereClause = `WHERE ${conditions.join(' AND ')}`;
@@ -79,11 +82,11 @@ function getData(searchParams: Record<string, string | undefined>) {
     SELECT p.*,
            c.name_en as category_name_en, c.name_ko as category_name_ko,
            t.name_en as type_name_en, t.name_ko as type_name_ko,
-           m.name_en as manufacturer_name_en, m.name_ko as manufacturer_name_ko
+           m.name_en as brand_name_en, m.name_ko as brand_name_ko
     FROM products p
     LEFT JOIN categories c ON p.category_id = c.id
     LEFT JOIN types t ON p.type_id = t.id
-    LEFT JOIN manufacturers m ON p.manufacturer_id = m.id
+    LEFT JOIN brands m ON p.brand_id = m.id
     ${whereClause}
     ORDER BY p.created_at DESC
     LIMIT ? OFFSET ?
@@ -92,7 +95,7 @@ function getData(searchParams: Record<string, string | undefined>) {
   return {
     categories: categoriesWithChildren,
     types,
-    manufacturers,
+    brands,
     products,
     total: countRow.total,
     page,
@@ -112,7 +115,7 @@ export default async function ProductsPage({
     <ProductsClient
       categories={data.categories}
       types={data.types}
-      manufacturers={data.manufacturers}
+      brands={data.brands}
       initialProducts={data.products}
       initialTotal={data.total}
       initialPage={data.page}

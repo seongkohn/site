@@ -6,23 +6,78 @@ import { useLanguage } from '@/components/LanguageProvider';
 import { t } from '@/lib/i18n';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import ProductCard from '@/components/ProductCard';
-import type { Product } from '@/lib/types';
+import ReactMarkdown from 'react-markdown';
+import { useState, useEffect, useCallback } from 'react';
+import type { Product, Variant, ProductImage, ProductSpec } from '@/lib/types';
 
 interface Props {
   product: Product;
   relatedProducts: Product[];
+  variants: Variant[];
+  images: ProductImage[];
+  specs: ProductSpec[];
 }
 
-export default function ProductDetailClient({ product, relatedProducts }: Props) {
+function getVideoEmbedUrl(url: string): string | null {
+  // YouTube
+  const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s]+)/);
+  if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
+  // Vimeo
+  const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+  if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+  // Already an embed URL
+  if (url.includes('embed')) return url;
+  return null;
+}
+
+export default function ProductDetailClient({ product, relatedProducts, variants, images, specs }: Props) {
   const { lang } = useLanguage();
+  const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [activeTab, setActiveTab] = useState<'description' | 'specifications' | 'related'>('description');
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/auth/check').then((res) => {
+      if (res.ok) setIsAdmin(true);
+    }).catch(() => {});
+  }, []);
 
   const name = lang === 'en' ? product.name_en : product.name_ko;
   const description = lang === 'en' ? product.description_en : product.description_ko;
+  const detail = lang === 'en' ? product.detail_en : product.detail_ko;
   const featuresRaw = lang === 'en' ? product.features_en : product.features_ko;
   const features = featuresRaw ? featuresRaw.split('\n').filter(Boolean) : [];
   const categoryName = lang === 'en' ? product.category_name_en : product.category_name_ko;
   const typeName = lang === 'en' ? product.type_name_en : product.type_name_ko;
-  const manufacturerName = lang === 'en' ? product.manufacturer_name_en : product.manufacturer_name_ko;
+  const brandName = lang === 'en' ? product.brand_name_en : product.brand_name_ko;
+
+  // Build gallery items: use gallery images if available, else fall back to single product.image
+  const hasGallery = images.length > 0;
+  const galleryItems = hasGallery
+    ? images
+    : product.image
+      ? [{ id: 0, product_id: product.id, url: product.image, type: 'image' as const, alt_en: null, alt_ko: null, variant_id: null, sort_order: 0 }]
+      : [];
+
+  // When a variant is selected, jump to first gallery image linked to it
+  const jumpToVariantImage = useCallback((variant: Variant | null) => {
+    if (!variant || !hasGallery) return;
+    const idx = images.findIndex((img) => img.variant_id === variant.id);
+    if (idx >= 0) setSelectedImageIndex(idx);
+  }, [images, hasGallery]);
+
+  useEffect(() => {
+    jumpToVariantImage(selectedVariant);
+  }, [selectedVariant, jumpToVariantImage]);
+
+  const currentItem = galleryItems[selectedImageIndex] || galleryItems[0];
+
+  const tabs = [
+    { key: 'description' as const, label: lang === 'en' ? 'Description' : '상세 설명' },
+    { key: 'specifications' as const, label: lang === 'en' ? 'Specifications' : '사양' },
+    { key: 'related' as const, label: lang === 'en' ? 'Related Products' : '관련 제품' },
+  ];
 
   return (
     <main className="max-w-7xl mx-auto px-4 py-8">
@@ -34,34 +89,81 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
-        {/* Left: Product Image */}
-        <div className="bg-brand-pale rounded-xl flex items-center justify-center aspect-square relative overflow-hidden">
-          {product.image ? (
-            <Image
-              src={product.image}
-              alt={name}
-              fill
-              className="object-contain p-8"
-              sizes="(max-width: 1024px) 100vw, 50vw"
-              priority
-            />
-          ) : (
-            <div className="flex flex-col items-center text-gray-400">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-24 w-24"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={0.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+        {/* Left: Image Gallery */}
+        <div>
+          {/* Main display */}
+          <div className="bg-brand-pale rounded-xl flex items-center justify-center aspect-square relative overflow-hidden">
+            {currentItem ? (
+              currentItem.type === 'video' ? (
+                <iframe
+                  src={getVideoEmbedUrl(currentItem.url) || currentItem.url}
+                  className="w-full h-full"
+                  allowFullScreen
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  title={lang === 'en' ? (currentItem.alt_en || name) : (currentItem.alt_ko || name)}
                 />
-              </svg>
-              <span className="mt-2 text-sm">No image available</span>
+              ) : (
+                <Image
+                  src={currentItem.url}
+                  alt={lang === 'en' ? (currentItem.alt_en || name) : (currentItem.alt_ko || name)}
+                  fill
+                  className="object-contain p-8"
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  priority
+                />
+              )
+            ) : (
+              <div className="flex flex-col items-center text-gray-400">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-24 w-24"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={0.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                <span className="mt-2 text-sm">No image available</span>
+              </div>
+            )}
+          </div>
+
+          {/* Thumbnail strip */}
+          {galleryItems.length > 1 && (
+            <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+              {galleryItems.map((item, i) => (
+                <button
+                  key={item.id || i}
+                  onClick={() => setSelectedImageIndex(i)}
+                  className={`shrink-0 w-16 h-16 rounded-lg border-2 overflow-hidden transition ${
+                    i === selectedImageIndex
+                      ? 'border-brand-purple'
+                      : 'border-gray-200 hover:border-gray-400'
+                  }`}
+                >
+                  {item.type === 'video' ? (
+                    <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                  ) : (
+                    <Image
+                      src={item.url}
+                      alt=""
+                      width={64}
+                      height={64}
+                      className="w-full h-full object-contain"
+                    />
+                  )}
+                </button>
+              ))}
             </div>
           )}
         </div>
@@ -83,26 +185,58 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
           </div>
 
           {/* Product name */}
-          <h1
-            className="text-2xl lg:text-3xl font-bold text-brand-navy mb-2"          >
+          <h1 className="text-2xl lg:text-3xl font-bold text-brand-navy mb-2">
             {name}
           </h1>
 
-          {/* Manufacturer + SKU */}
+          {/* Brand + SKU */}
           <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 mb-6">
-            {manufacturerName && (
-              <span className="font-medium text-brand-navy">{manufacturerName}</span>
+            {brandName && (
+              <span className="font-medium text-brand-navy">{brandName}</span>
             )}
             <span className="text-gray-300">|</span>
-            <span>{t('products.sku', lang)}: {product.sku}</span>
+            <span>{t('products.sku', lang)}: {selectedVariant ? selectedVariant.sku : product.sku}</span>
           </div>
 
-          {/* Description */}
-          {description && (
+          {/* Variants */}
+          {variants.length > 0 && (
             <div className="mb-6">
               <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                {t('products.description', lang)}
+                {lang === 'en' ? 'Variations' : '제품 옵션'}
               </h2>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setSelectedVariant(null)}
+                  className={`px-3 py-1.5 text-sm rounded-lg border transition ${
+                    !selectedVariant
+                      ? 'border-brand-purple bg-brand-purple text-white'
+                      : 'border-gray-300 text-gray-700 hover:border-brand-purple'
+                  }`}
+                >
+                  {lang === 'en' ? product.name_en : product.name_ko}
+                  <span className="ml-1 text-xs opacity-70">({product.sku})</span>
+                </button>
+                {variants.map((v) => (
+                  <button
+                    key={v.id}
+                    onClick={() => setSelectedVariant(v)}
+                    className={`px-3 py-1.5 text-sm rounded-lg border transition ${
+                      selectedVariant?.id === v.id
+                        ? 'border-brand-purple bg-brand-purple text-white'
+                        : 'border-gray-300 text-gray-700 hover:border-brand-purple'
+                    }`}
+                  >
+                    {lang === 'en' ? v.name_en : v.name_ko}
+                    <span className="ml-1 text-xs opacity-70">({v.sku})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Short Description (summary) */}
+          {description && (
+            <div className="mb-6">
               <p className="text-gray-700 leading-relaxed">{description}</p>
             </div>
           )}
@@ -135,49 +269,128 @@ export default function ProductDetailClient({ product, relatedProducts }: Props)
             </div>
           )}
 
-          {/* Request a Quote button */}
-          <Link
-            href={`/contact?product=${product.id}`}
-            className="inline-flex items-center gap-2 bg-brand-magenta text-white px-6 py-3 rounded-lg font-medium hover:bg-brand-magenta/90 transition"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
+          {/* Request a Quote + Edit button */}
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/contact?product=${product.id}`}
+              className="inline-flex items-center gap-2 bg-brand-magenta text-white px-6 py-3 rounded-lg font-medium hover:bg-brand-magenta/90 transition"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-              />
-            </svg>
-            {t('products.requestQuote', lang)}
-          </Link>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                />
+              </svg>
+              {t('products.requestQuote', lang)}
+            </Link>
+            {isAdmin && (
+              <Link
+                href={`/admin/products/${product.id}`}
+                className="inline-flex items-center gap-2 border border-gray-300 text-gray-600 px-4 py-3 rounded-lg text-sm font-medium hover:border-brand-purple hover:text-brand-purple transition"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                {lang === 'en' ? 'Edit' : '편집'}
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Related Products */}
-      {relatedProducts.length > 0 && (
-        <section className="mt-16">
-          <h2
-            className="text-xl font-bold text-brand-navy mb-6"          >
-            {t('products.relatedProducts', lang)}
-          </h2>
-          <div
-            className="grid gap-4"
-            style={{
-              gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
-            }}
-          >
-            {relatedProducts.map((rp) => (
-              <ProductCard key={rp.id} product={rp} />
+      {/* Tabbed sections */}
+      <div className="mt-12">
+        {/* Tab headers */}
+        <div className="border-b border-gray-200">
+          <div className="flex gap-0">
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`px-6 py-3 text-sm font-medium border-b-2 transition ${
+                  activeTab === tab.key
+                    ? 'border-brand-purple text-brand-purple'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                {tab.label}
+              </button>
             ))}
           </div>
-        </section>
-      )}
+        </div>
+
+        {/* Tab content */}
+        <div className="py-6">
+          {/* Description Tab */}
+          {activeTab === 'description' && (
+            <div>
+              {/* Markdown detail or fallback to short description */}
+              {detail ? (
+                <div className="prose prose-sm max-w-none text-gray-700">
+                  <ReactMarkdown>{detail}</ReactMarkdown>
+                </div>
+              ) : description ? (
+                <p className="text-gray-700 leading-relaxed">{description}</p>
+              ) : (
+                <p className="text-gray-400 text-sm">{lang === 'en' ? 'No description available.' : '설명이 없습니다.'}</p>
+              )}
+
+            </div>
+          )}
+
+          {/* Specifications Tab */}
+          {activeTab === 'specifications' && (
+            <div>
+              {specs.length > 0 ? (
+                <table className="w-full max-w-2xl text-sm">
+                  <tbody>
+                    {specs.map((spec, i) => (
+                      <tr key={spec.id} className={i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                        <td className="px-4 py-3 font-medium text-gray-700 w-1/3">
+                          {lang === 'en' ? spec.key_en : spec.key_ko}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">
+                          {lang === 'en' ? spec.value_en : spec.value_ko}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-gray-400 text-sm">{lang === 'en' ? 'No specifications available.' : '사양 정보가 없습니다.'}</p>
+              )}
+            </div>
+          )}
+
+          {/* Related Products Tab */}
+          {activeTab === 'related' && (
+            <div>
+              {relatedProducts.length > 0 ? (
+                <div
+                  className="grid gap-4"
+                  style={{
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
+                  }}
+                >
+                  {relatedProducts.map((rp) => (
+                    <ProductCard key={rp.id} product={rp} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-400 text-sm">{lang === 'en' ? 'No related products.' : '관련 제품이 없습니다.'}</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     </main>
   );
 }

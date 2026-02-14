@@ -10,17 +10,17 @@ export function seedDatabase() {
   const existing = db.prepare('SELECT COUNT(*) as count FROM categories').get() as { count: number };
   if (existing.count > 0) return;
 
-  // Manufacturers
-  const insertMfr = db.prepare(`
-    INSERT INTO manufacturers (name_en, name_ko, slug, website, description_en, description_ko, sort_order)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+  // Brands
+  const insertBrand = db.prepare(`
+    INSERT INTO brands (name_en, name_ko, slug, logo, website, description_en, description_ko, sort_order)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
-  insertMfr.run('Epredia', '에프레디아', 'epredia', 'https://www.epredia.com', 'Formerly Thermo Fisher Scientific Anatomical Pathology. Instruments, reagents, and consumables for histology and cytology laboratories.', '구 Thermo Fisher Scientific Anatomical Pathology. 조직병리 및 세포병리 검사실용 장비, 시약 및 소모품.', 1);
-  insertMfr.run('3DHISTECH', '3D히스테크', '3dhistech', 'https://www.3dhistech.com', 'Digital pathology pioneer offering slide scanners, image analysis, and telepathology solutions.', '슬라이드 스캐너, 이미지 분석, 원격병리 솔루션을 제공하는 디지털 병리 선도 기업.', 2);
-  insertMfr.run('Hologic', '홀로직', 'hologic', 'https://www.hologic.com', 'Global leader in women\'s health diagnostics including the ThinPrep and Genius Digital Cytology systems.', '씬프렙 및 Genius 디지털 세포병리 시스템을 포함한 여성 건강 진단 분야의 글로벌 리더.', 3);
-  insertMfr.run('Grundium', '그런디움', 'grundium', 'https://www.grundium.com', 'Finnish innovator in portable digital microscopy and remote pathology solutions.', '휴대용 디지털 현미경 및 원격 병리 솔루션 분야의 핀란드 혁신 기업.', 4);
-  insertMfr.run('Milestone', '마일스톤', 'milestone', 'https://www.milestoneimaging.com', 'Pioneer in immunohistochemistry automation and digital pathology solutions.', '면역조직화학 자동화 및 디지털 병리 솔루션 분야의 선도 기업.', 5);
-  insertMfr.run('Biocartis', '바이오카르티스', 'biocartis', 'https://www.biocartis.com', 'Belgian molecular diagnostics company specializing in rapid, high-quality molecular testing solutions.', '신속하고 고품질의 분자진단 테스트 솔루션을 전문으로 하는 벨기에 회사.', 6);
+  insertBrand.run('Epredia', '에프레디아', 'epredia', '/images/brands/epredia.jpg', 'https://www.epredia.com', 'Formerly Thermo Fisher Scientific Anatomical Pathology. Instruments, reagents, and consumables for histology and cytology laboratories.', '구 Thermo Fisher Scientific Anatomical Pathology. 조직병리 및 세포병리 검사실용 장비, 시약 및 소모품.', 1);
+  insertBrand.run('3DHISTECH', '3D히스테크', '3dhistech', '/images/brands/3dh.jpg', 'https://www.3dhistech.com', 'Digital pathology pioneer offering slide scanners, image analysis, and telepathology solutions.', '슬라이드 스캐너, 이미지 분석, 원격병리 솔루션을 제공하는 디지털 병리 선도 기업.', 2);
+  insertBrand.run('Hologic', '홀로직', 'hologic', '/images/brands/hologic.jpg', 'https://www.hologic.com', 'Global leader in women\'s health diagnostics including the ThinPrep and Genius Digital Cytology systems.', '씬프렙 및 Genius 디지털 세포병리 시스템을 포함한 여성 건강 진단 분야의 글로벌 리더.', 3);
+  insertBrand.run('Grundium', '그런디움', 'grundium', '/images/brands/grundium.jpg', 'https://www.grundium.com', 'Finnish innovator in portable digital microscopy and remote pathology solutions.', '휴대용 디지털 현미경 및 원격 병리 솔루션 분야의 핀란드 혁신 기업.', 4);
+  insertBrand.run('Milestone', '마일스톤', 'milestone', '/images/brands/milestone.jpg', 'https://www.milestoneimaging.com', 'Pioneer in immunohistochemistry automation and digital pathology solutions.', '면역조직화학 자동화 및 디지털 병리 솔루션 분야의 선도 기업.', 5);
+  insertBrand.run('Biocartis', '바이오카르티스', 'biocartis', '/images/brands/biocartis.jpg', 'https://www.biocartis.com', 'Belgian molecular diagnostics company specializing in rapid, high-quality molecular testing solutions.', '신속하고 고품질의 분자진단 테스트 솔루션을 전문으로 하는 벨기에 회사.', 6);
 
   // Categories (parent categories)
   const insertCat = db.prepare(`
@@ -60,7 +60,7 @@ export function seedDatabase() {
 
   // Products
   const insertProd = db.prepare(`
-    INSERT INTO products (name_en, name_ko, slug, sku, category_id, type_id, manufacturer_id, description_en, description_ko, features_en, features_ko, is_published, is_featured)
+    INSERT INTO products (name_en, name_ko, slug, sku, category_id, type_id, brand_id, description_en, description_ko, features_en, features_ko, is_published, is_featured)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
   `);
 
@@ -160,6 +160,16 @@ export function seedDatabase() {
   insertRelated.run(4, 3); // PANNORAMIC 480 -> PANNORAMIC 250
   insertRelated.run(7, 6); // Genius -> Ocus
 
+  // Hero slides
+  const insertSlide = db.prepare(`
+    INSERT INTO hero_slides (title_en, title_ko, subtitle_en, subtitle_ko, image, text_color, text_align, sort_order)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  insertSlide.run('Transforming Diagnostics', '진단의 혁신', 'Genius\u2122 Digital Cytology', 'Genius\u2122 디지털 세포병리', '/images/hero/genius_banner_front.jpg', 'light', 'left', 1);
+  insertSlide.run('Advanced Imaging Solutions', '고급 이미징 솔루션', 'PANNORAMIC 480 DX Digital Scanner', 'PANNORAMIC 480 DX 디지털 스캐너', '/images/hero/p480.png', 'dark', 'left', 2);
+  insertSlide.run('Essential Histology Consumables', '필수 조직병리 소모품', 'Premium Quality Slides & Reagents', '프리미엄 품질 슬라이드 & 시약', '/images/hero/slide-banner.jpg', 'dark', 'left', 3);
+  insertSlide.run('Remote Pathology Made Effortless', '원격 병리학을 쉽게', 'Ocus Slide Scanners', 'Ocus 슬라이드 스캐너', '/images/hero/ocus_banner.jpg', 'light', 'right', 4);
+
   // Default admin user (password: admin123)
   const hash = bcryptjs.hashSync('admin123', 10);
   db.prepare('INSERT INTO admin_users (username, password_hash) VALUES (?, ?)').run('admin', hash);
@@ -169,7 +179,7 @@ export function seedDatabase() {
   insertSetting.run('company_name_en', 'Seongkohn Traders Corp.');
   insertSetting.run('company_name_ko', '성곤무역(주)');
   insertSetting.run('company_address_en', '38, Hakdong-ro 50-gil, Gangnam-gu, Seoul 06100, Korea');
-  insertSetting.run('company_address_ko', '서울 강남구 학동로 50길 38, 06100');
+  insertSetting.run('company_address_ko', '서울 강남구 학동로50길 38, 06100');
   insertSetting.run('company_phone', '+82-2-540-3311');
   insertSetting.run('company_fax', '+82-2-540-3312');
   insertSetting.run('company_email', 'labsales@seongkohn.com');
