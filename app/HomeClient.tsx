@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { useLanguage } from '@/components/LanguageProvider';
+import { useLanguage, localize } from '@/components/LanguageProvider';
 import { t } from '@/lib/i18n';
 import ProductCard from '@/components/ProductCard';
 import type { Product, Brand, HeroSlide } from '@/lib/types';
@@ -21,6 +21,86 @@ const homeCats = [
   { id: 'consumables', nameKey: 'homeCats.consumables', descKey: 'homeCats.consumablesDesc', icon: '\uD83D\uDCE6' },
   { id: 'reagents', nameKey: 'homeCats.reagents', descKey: 'homeCats.reagentsDesc', icon: '\uD83E\uDDEA' },
 ];
+
+function FeaturedCarousel({ products, lang }: { products: Product[]; lang: 'en' | 'ko' }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const updateScrollState = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 0);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 1);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    updateScrollState();
+    el.addEventListener('scroll', updateScrollState, { passive: true });
+    return () => el.removeEventListener('scroll', updateScrollState);
+  }, [updateScrollState]);
+
+  function scroll(direction: 'left' | 'right') {
+    const el = scrollRef.current;
+    if (!el) return;
+    const cardWidth = el.querySelector(':scope > a')?.clientWidth || 260;
+    el.scrollBy({ left: direction === 'left' ? -cardWidth * 2 : cardWidth * 2, behavior: 'smooth' });
+  }
+
+  return (
+    <section className="bg-gray-50 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-lg font-bold text-gray-800">
+            {t('home.featured', lang)}
+          </h2>
+          <div className="flex items-center gap-3">
+            <div className="flex gap-1">
+              <button
+                onClick={() => scroll('left')}
+                disabled={!canScrollLeft}
+                className="p-1.5 rounded-full border border-gray-300 text-gray-500 hover:bg-white hover:text-brand-navy disabled:opacity-30 disabled:cursor-default transition"
+                aria-label="Scroll left"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+              </button>
+              <button
+                onClick={() => scroll('right')}
+                disabled={!canScrollRight}
+                className="p-1.5 rounded-full border border-gray-300 text-gray-500 hover:bg-white hover:text-brand-navy disabled:opacity-30 disabled:cursor-default transition"
+                aria-label="Scroll right"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+              </button>
+            </div>
+            <Link
+              href="/products"
+              className="text-sm font-medium text-brand-magenta flex items-center gap-1 hover:underline"
+            >
+              {t('home.viewAll', lang)}
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
+        </div>
+        <div
+          ref={scrollRef}
+          className="flex gap-3.5 overflow-x-auto scroll-smooth no-scrollbar"
+          style={{ scrollSnapType: 'x mandatory' }}
+        >
+          {products.map((product) => (
+            <div key={product.id} className="flex-none w-[220px] sm:w-[240px] lg:w-[260px]" style={{ scrollSnapAlign: 'start' }}>
+              <ProductCard product={product} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function HomeClient({ featuredProducts, brands, heroSlides }: HomeClientProps) {
   const { lang } = useLanguage();
@@ -48,8 +128,8 @@ export default function HomeClient({ featuredProducts, brands, heroSlides }: Hom
     if (!currentSlide) return null;
     const isDark = currentSlide.text_color === 'dark';
     const isRight = currentSlide.text_align === 'right';
-    const title = lang === 'en' ? currentSlide.title_en : currentSlide.title_ko;
-    const subtitle = lang === 'en' ? currentSlide.subtitle_en : currentSlide.subtitle_ko;
+    const title = localize(lang, currentSlide.title_en, currentSlide.title_ko);
+    const subtitle = localize(lang, currentSlide.subtitle_en, currentSlide.subtitle_ko);
 
     const content = (
       <div className={isDark ? 'text-black' : 'text-white'}>
@@ -174,33 +254,9 @@ export default function HomeClient({ featuredProducts, brands, heroSlides }: Hom
         </div>
       </section>
 
-      {/* Featured products */}
+      {/* Featured products carousel */}
       {featuredProducts.length > 0 && (
-        <section className="bg-gray-50 py-12">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center mb-6">
-              <h2
-                className="text-lg font-bold text-gray-800"
-              >
-                {t('home.featured', lang)}
-              </h2>
-              <Link
-                href="/products"
-                className="text-sm font-medium text-brand-magenta flex items-center gap-1 hover:underline"
-              >
-                {t('home.viewAll', lang)}
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5">
-              {featuredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          </div>
-        </section>
+        <FeaturedCarousel products={featuredProducts} lang={lang} />
       )}
 
       {/* Company intro */}
@@ -252,7 +308,7 @@ export default function HomeClient({ featuredProducts, brands, heroSlides }: Hom
           <div className="flex justify-center flex-wrap gap-8">
             {brands.map((b) => (
               <span key={b.id} className="text-gray-300 text-sm font-medium">
-                {lang === 'en' ? b.name_en : b.name_ko}
+                {localize(lang, b.name_en, b.name_ko)}
               </span>
             ))}
           </div>

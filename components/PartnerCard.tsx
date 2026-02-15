@@ -1,17 +1,18 @@
 'use client';
 
-import { useLanguage } from './LanguageProvider';
+import Image from 'next/image';
+import { useLanguage, localize } from './LanguageProvider';
 import type { Brand } from '@/lib/types';
 
 export default function PartnerCard({ brand }: { brand: Brand }) {
   const { lang } = useLanguage();
-  const name = lang === 'en' ? brand.name_en : brand.name_ko;
-  const description = lang === 'en' ? brand.description_en : brand.description_ko;
+  const name = localize(lang, brand.name_en, brand.name_ko);
+  const description = localize(lang, brand.description_en, brand.description_ko);
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 text-center hover:shadow-md transition">
       {brand.logo ? (
-        <img src={brand.logo} alt={name} className="h-12 mx-auto mb-4 object-contain" />
+        <Image src={brand.logo} alt={name} width={120} height={48} className="h-12 mx-auto mb-4 object-contain" />
       ) : (
         <div className="text-4xl mb-4 opacity-50">&#127970;</div>
       )}

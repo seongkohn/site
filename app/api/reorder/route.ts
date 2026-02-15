@@ -4,7 +4,7 @@ import { initializeSchema } from '@/lib/schema';
 import { seedDatabase } from '@/lib/seed';
 import { getAdminUser } from '@/lib/auth';
 
-const ALLOWED_TABLES = ['categories', 'types', 'brands', 'hero_slides'] as const;
+const ALLOWED_TABLES = ['categories', 'types', 'brands', 'hero_slides', 'products'] as const;
 type TableName = (typeof ALLOWED_TABLES)[number];
 
 export async function POST(request: NextRequest) {
@@ -68,6 +68,42 @@ export async function POST(request: NextRequest) {
     }
 
     const update = db.prepare('UPDATE categories SET sort_order = ? WHERE id = ?');
+    db.transaction(() => {
+      update.run(newCurrentOrder, current.id);
+      update.run(newSwapOrder, swap.id);
+    })();
+
+    return NextResponse.json({ success: true });
+  }
+
+  // For products, reorder only featured items using featured_order column
+  if (table === 'products') {
+    const items = db
+      .prepare('SELECT id, featured_order as sort_order FROM products WHERE is_featured = 1 ORDER BY featured_order, id')
+      .all() as { id: number; sort_order: number }[];
+
+    const currentIndex = items.findIndex((item) => item.id === id);
+    if (currentIndex === -1) {
+      return NextResponse.json({ error: 'Item not found or not featured' }, { status: 404 });
+    }
+
+    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (swapIndex < 0 || swapIndex >= items.length) {
+      return NextResponse.json({ success: true });
+    }
+
+    const current = items[currentIndex];
+    const swap = items[swapIndex];
+
+    let newCurrentOrder = swap.sort_order;
+    let newSwapOrder = current.sort_order;
+
+    if (newCurrentOrder === newSwapOrder) {
+      newCurrentOrder = swapIndex;
+      newSwapOrder = currentIndex;
+    }
+
+    const update = db.prepare('UPDATE products SET featured_order = ? WHERE id = ?');
     db.transaction(() => {
       update.run(newCurrentOrder, current.id);
       update.run(newSwapOrder, swap.id);

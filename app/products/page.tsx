@@ -23,7 +23,10 @@ function getData(searchParams: Record<string, string | undefined>) {
     ...parent,
     children: allCategories.filter(c => c.parent_id === parent.id).map(child => ({
       ...child,
-      children: allCategories.filter(c => c.parent_id === child.id),
+      children: allCategories.filter(c => c.parent_id === child.id).map(gc => ({
+        ...gc,
+        children: [] as CategoryWithChildren[],
+      })),
     })),
   }));
 

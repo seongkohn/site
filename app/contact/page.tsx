@@ -1,11 +1,37 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, useCallback, FormEvent } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/components/LanguageProvider';
 import { t } from '@/lib/i18n';
+import Turnstile from '@/components/Turnstile';
+
+function buildQuoteMessage(params: URLSearchParams): string {
+  const productName = params.get('name');
+  if (!productName) return '';
+
+  const sku = params.get('sku');
+  const variant = params.get('variant');
+  const msgLang = params.get('lang') || 'ko';
+
+  if (msgLang === 'en') {
+    let msg = `I would like to request a quote for the following product:\n\n`;
+    msg += `Product: ${productName}\n`;
+    if (sku) msg += `SKU: ${sku}\n`;
+    if (variant) msg += `Option: ${variant}\n`;
+    return msg;
+  }
+
+  let msg = `다음 제품에 대한 견적을 요청드립니다.\n\n`;
+  msg += `제품명: ${productName}\n`;
+  if (sku) msg += `품번: ${sku}\n`;
+  if (variant) msg += `옵션: ${variant}\n`;
+  return msg;
+}
 
 export default function ContactPage() {
   const { lang } = useLanguage();
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -15,6 +41,15 @@ export default function ContactPage() {
   });
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const handleTurnstile = useCallback((token: string) => setTurnstileToken(token), []);
+
+  useEffect(() => {
+    const msg = buildQuoteMessage(searchParams);
+    if (msg) {
+      setFormData((prev) => ({ ...prev, message: msg }));
+    }
+  }, [searchParams]);
 
   function validate() {
     const errs: Record<string, string> = {};
@@ -41,7 +76,7 @@ export default function ContactPage() {
       const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, lang, turnstileToken }),
       });
       if (res.ok) {
         setStatus('success');
@@ -110,6 +145,20 @@ export default function ContactPage() {
                   </a>
                 </p>
               </div>
+            </div>
+
+            {/* Map */}
+            <div className="mt-6 rounded-lg overflow-hidden border border-gray-200">
+              <iframe
+                src="https://maps.google.com/maps?q=Seongkohn+Traders+Corp&t=&z=13&ie=UTF8&iwloc=&output=embed"
+                width="100%"
+                height="250"
+                style={{ border: 0 }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                title="Seongkohn Traders Corp."
+              />
             </div>
           </div>
 
@@ -185,9 +234,11 @@ export default function ContactPage() {
                 {errors.message && <p className="text-red-500 text-xs mt-1">{errors.message}</p>}
               </div>
 
+              <Turnstile onVerify={handleTurnstile} />
+
               <button
                 type="submit"
-                disabled={status === 'sending'}
+                disabled={status === 'sending' || !turnstileToken}
                 className="w-full bg-brand-magenta text-white font-semibold py-2.5 px-6 rounded-md hover:bg-brand-magenta/90 transition disabled:opacity-50"
               >
                 {status === 'sending' ? '...' : t('contact.send', lang)}

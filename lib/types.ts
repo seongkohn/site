@@ -49,6 +49,7 @@ export interface Product {
   detail_en: string | null;
   detail_ko: string | null;
   is_featured: number;
+  featured_order: number;
   created_at: string;
   updated_at: string;
   // Joined fields

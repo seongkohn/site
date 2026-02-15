@@ -19,6 +19,12 @@ export function useLanguage() {
   return useContext(LanguageContext);
 }
 
+/** Pick the localized string, falling back to English if Korean is empty */
+export function localize(lang: Lang, en: string | null | undefined, ko: string | null | undefined): string {
+  if (lang === 'en') return en || '';
+  return ko || en || '';
+}
+
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>('ko');
 

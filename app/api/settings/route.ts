@@ -53,6 +53,10 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Current password is incorrect' }, { status: 400 });
     }
 
+    if (!new_password || new_password.length < 8) {
+      return NextResponse.json({ error: 'New password must be at least 8 characters' }, { status: 400 });
+    }
+
     const newHash = hashPassword(new_password);
     db.prepare('UPDATE admin_users SET password_hash = ? WHERE id = ?').run(newHash, user.id);
 

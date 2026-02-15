@@ -21,6 +21,8 @@ export default function BrandsPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchBrands();
@@ -119,6 +121,36 @@ export default function BrandsPage() {
     }
   }
 
+  function toggleSelect(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === brands.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(brands.map((b) => b.id)));
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (!confirm(`Delete ${selected.size} brand(s)?`)) return;
+    setDeleting(true);
+    try {
+      await Promise.all([...selected].map((id) => fetch(`/api/brands/${id}`, { method: 'DELETE' })));
+      setSelected(new Set());
+      await fetchBrands();
+    } catch {
+      alert('Failed to delete some brands');
+    }
+    setDeleting(false);
+  }
+
   async function handleMove(id: number, direction: 'up' | 'down') {
     try {
       await fetch('/api/reorder', {
@@ -161,7 +193,6 @@ export default function BrandsPage() {
               <label className="block text-xs text-gray-400 mb-1">Name KO</label>
               <input
                 type="text"
-                required
                 value={form.name_ko}
                 onChange={(e) => setForm({ ...form, name_ko: e.target.value })}
                 className="border border-gray-200 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
@@ -246,11 +277,32 @@ export default function BrandsPage() {
         </div>
       </form>
 
+      {/* Bulk delete */}
+      {selected.size > 0 && (
+        <div className="mb-4">
+          <button
+            onClick={handleBulkDelete}
+            disabled={deleting}
+            className="bg-red-500 text-white text-sm px-4 py-1.5 rounded hover:bg-red-600 transition disabled:opacity-50"
+          >
+            {deleting ? 'Deleting...' : `Delete Selected (${selected.size})`}
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
+              <th className="px-4 py-3 w-8">
+                <input
+                  type="checkbox"
+                  checked={brands.length > 0 && selected.size === brands.length}
+                  onChange={toggleSelectAll}
+                  className="rounded border-gray-300"
+                />
+              </th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Logo</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Name EN</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Name KO</th>
@@ -263,6 +315,14 @@ export default function BrandsPage() {
           <tbody>
             {brands.map((brand) => (
               <tr key={brand.id} className="border-b border-gray-100 hover:bg-gray-50">
+                <td className="px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(brand.id)}
+                    onChange={() => toggleSelect(brand.id)}
+                    className="rounded border-gray-300"
+                  />
+                </td>
                 <td className="px-4 py-3">
                   {brand.logo ? (
                     <img src={brand.logo} alt={brand.name_en} className="w-8 h-8 object-contain" />
@@ -314,7 +374,7 @@ export default function BrandsPage() {
             ))}
             {brands.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">
+                <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">
                   No brands yet.
                 </td>
               </tr>

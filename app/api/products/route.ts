@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN types t ON p.type_id = t.id
       LEFT JOIN brands m ON p.brand_id = m.id
       ${whereClause}
-      ORDER BY p.created_at DESC
+      ORDER BY p.name_en COLLATE NOCASE ASC
       LIMIT ? OFFSET ?
     `).all(...params, limit, offset) as Product[];
 
@@ -107,8 +107,8 @@ export async function POST(request: Request) {
       image, is_published, is_featured,
     } = body;
 
-    if (!name_en || !name_ko || !sku) {
-      return NextResponse.json({ error: 'name_en, name_ko, and sku are required' }, { status: 400 });
+    if (!name_en || !sku) {
+      return NextResponse.json({ error: 'name_en and sku are required' }, { status: 400 });
     }
 
     const slug = body.slug || slugify(name_en, { lower: true, strict: true });

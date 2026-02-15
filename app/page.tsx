@@ -18,7 +18,7 @@ function getData() {
     LEFT JOIN types t ON p.type_id = t.id
     LEFT JOIN brands m ON p.brand_id = m.id
     WHERE p.is_published = 1 AND p.is_featured = 1
-    ORDER BY p.created_at DESC LIMIT 4
+    ORDER BY p.featured_order, p.created_at DESC LIMIT 12
   `).all() as Product[];
 
   const brands = db.prepare(`

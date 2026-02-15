@@ -2,11 +2,10 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useLanguage } from '@/components/LanguageProvider';
+import { useLanguage, localize } from '@/components/LanguageProvider';
 import { t } from '@/lib/i18n';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import ProductCard from '@/components/ProductCard';
-import ReactMarkdown from 'react-markdown';
 import { useState, useEffect, useCallback } from 'react';
 import type { Product, Variant, ProductImage, ProductSpec } from '@/lib/types';
 
@@ -34,7 +33,7 @@ export default function ProductDetailClient({ product, relatedProducts, variants
   const { lang } = useLanguage();
   const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [activeTab, setActiveTab] = useState<'description' | 'specifications' | 'related'>('description');
+  const [activeTab, setActiveTab] = useState<'description' | 'specifications'>('description');
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -43,14 +42,17 @@ export default function ProductDetailClient({ product, relatedProducts, variants
     }).catch(() => {});
   }, []);
 
-  const name = lang === 'en' ? product.name_en : product.name_ko;
-  const description = lang === 'en' ? product.description_en : product.description_ko;
-  const detail = lang === 'en' ? product.detail_en : product.detail_ko;
-  const featuresRaw = lang === 'en' ? product.features_en : product.features_ko;
+  const name = localize(lang, product.name_en, product.name_ko);
+  const description = localize(lang, product.description_en, product.description_ko);
+  const isEmptyHtml = (s: string | null | undefined) => !s || s.replace(/<(.|\n)*?>/g, '').trim().length === 0;
+  const detailKo = isEmptyHtml(product.detail_ko) ? null : product.detail_ko;
+  const detailEn = isEmptyHtml(product.detail_en) ? null : product.detail_en;
+  const detail = localize(lang, detailEn, detailKo);
+  const featuresRaw = localize(lang, product.features_en, product.features_ko);
   const features = featuresRaw ? featuresRaw.split('\n').filter(Boolean) : [];
-  const categoryName = lang === 'en' ? product.category_name_en : product.category_name_ko;
-  const typeName = lang === 'en' ? product.type_name_en : product.type_name_ko;
-  const brandName = lang === 'en' ? product.brand_name_en : product.brand_name_ko;
+  const categoryName = localize(lang, product.category_name_en, product.category_name_ko);
+  const typeName = localize(lang, product.type_name_en, product.type_name_ko);
+  const brandName = localize(lang, product.brand_name_en, product.brand_name_ko);
 
   // Build gallery items: use gallery images if available, else fall back to single product.image
   const hasGallery = images.length > 0;
@@ -76,7 +78,6 @@ export default function ProductDetailClient({ product, relatedProducts, variants
   const tabs = [
     { key: 'description' as const, label: lang === 'en' ? 'Description' : '상세 설명' },
     { key: 'specifications' as const, label: lang === 'en' ? 'Specifications' : '사양' },
-    { key: 'related' as const, label: lang === 'en' ? 'Related Products' : '관련 제품' },
   ];
 
   return (
@@ -92,7 +93,7 @@ export default function ProductDetailClient({ product, relatedProducts, variants
         {/* Left: Image Gallery */}
         <div>
           {/* Main display */}
-          <div className="bg-brand-pale rounded-xl flex items-center justify-center aspect-square relative overflow-hidden">
+          <div className="bg-white rounded-xl flex items-center justify-center aspect-square relative overflow-hidden">
             {currentItem ? (
               currentItem.type === 'video' ? (
                 <iframe
@@ -100,12 +101,12 @@ export default function ProductDetailClient({ product, relatedProducts, variants
                   className="w-full h-full"
                   allowFullScreen
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  title={lang === 'en' ? (currentItem.alt_en || name) : (currentItem.alt_ko || name)}
+                  title={localize(lang, currentItem.alt_en, currentItem.alt_ko) || name}
                 />
               ) : (
                 <Image
                   src={currentItem.url}
-                  alt={lang === 'en' ? (currentItem.alt_en || name) : (currentItem.alt_ko || name)}
+                  alt={localize(lang, currentItem.alt_en, currentItem.alt_ko) || name}
                   fill
                   className="object-contain p-8"
                   sizes="(max-width: 1024px) 100vw, 50vw"
@@ -213,7 +214,7 @@ export default function ProductDetailClient({ product, relatedProducts, variants
                       : 'border-gray-300 text-gray-700 hover:border-brand-purple'
                   }`}
                 >
-                  {lang === 'en' ? product.name_en : product.name_ko}
+                  {localize(lang, product.name_en, product.name_ko)}
                   <span className="ml-1 text-xs opacity-70">({product.sku})</span>
                 </button>
                 {variants.map((v) => (
@@ -226,7 +227,7 @@ export default function ProductDetailClient({ product, relatedProducts, variants
                         : 'border-gray-300 text-gray-700 hover:border-brand-purple'
                     }`}
                   >
-                    {lang === 'en' ? v.name_en : v.name_ko}
+                    {localize(lang, v.name_en, v.name_ko)}
                     <span className="ml-1 text-xs opacity-70">({v.sku})</span>
                   </button>
                 ))}
@@ -272,7 +273,15 @@ export default function ProductDetailClient({ product, relatedProducts, variants
           {/* Request a Quote + Edit button */}
           <div className="flex items-center gap-3">
             <Link
-              href={`/contact?product=${product.id}`}
+              href={(() => {
+                const params = new URLSearchParams();
+                params.set('product', String(product.id));
+                params.set('name', name);
+                params.set('sku', selectedVariant?.sku || product.sku);
+                if (selectedVariant) params.set('variant', localize(lang, selectedVariant.name_en, selectedVariant.name_ko));
+                params.set('lang', lang);
+                return `/contact?${params.toString()}`;
+              })()}
               className="inline-flex items-center gap-2 bg-brand-magenta text-white px-6 py-3 rounded-lg font-medium hover:bg-brand-magenta/90 transition"
             >
               <svg
@@ -332,11 +341,12 @@ export default function ProductDetailClient({ product, relatedProducts, variants
           {/* Description Tab */}
           {activeTab === 'description' && (
             <div>
-              {/* Markdown detail or fallback to short description */}
+              {/* Rich text detail or fallback to short description */}
               {detail ? (
-                <div className="prose prose-sm max-w-none text-gray-700">
-                  <ReactMarkdown>{detail}</ReactMarkdown>
-                </div>
+                <div
+                  className="prose prose-sm max-w-none text-gray-700 break-words overflow-hidden"
+                  dangerouslySetInnerHTML={{ __html: detail }}
+                />
               ) : description ? (
                 <p className="text-gray-700 leading-relaxed">{description}</p>
               ) : (
@@ -355,10 +365,10 @@ export default function ProductDetailClient({ product, relatedProducts, variants
                     {specs.map((spec, i) => (
                       <tr key={spec.id} className={i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
                         <td className="px-4 py-3 font-medium text-gray-700 w-1/3">
-                          {lang === 'en' ? spec.key_en : spec.key_ko}
+                          {localize(lang, spec.key_en, spec.key_ko)}
                         </td>
                         <td className="px-4 py-3 text-gray-600">
-                          {lang === 'en' ? spec.value_en : spec.value_ko}
+                          {localize(lang, spec.value_en, spec.value_ko)}
                         </td>
                       </tr>
                     ))}
@@ -370,27 +380,27 @@ export default function ProductDetailClient({ product, relatedProducts, variants
             </div>
           )}
 
-          {/* Related Products Tab */}
-          {activeTab === 'related' && (
-            <div>
-              {relatedProducts.length > 0 ? (
-                <div
-                  className="grid gap-4"
-                  style={{
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
-                  }}
-                >
-                  {relatedProducts.map((rp) => (
-                    <ProductCard key={rp.id} product={rp} />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-400 text-sm">{lang === 'en' ? 'No related products.' : '관련 제품이 없습니다.'}</p>
-              )}
-            </div>
-          )}
         </div>
       </div>
+
+      {/* Related Products */}
+      {relatedProducts.length > 0 && (
+        <div className="mt-12">
+          <h2 className="text-lg font-bold text-brand-navy mb-4">
+            {lang === 'en' ? 'Related Products' : '관련 제품'}
+          </h2>
+          <div
+            className="grid gap-4"
+            style={{
+              gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
+            }}
+          >
+            {relatedProducts.map((rp) => (
+              <ProductCard key={rp.id} product={rp} />
+            ))}
+          </div>
+        </div>
+      )}
     </main>
   );
 }

@@ -29,8 +29,8 @@ export async function POST(request: NextRequest) {
   const db = getDb();
   const body = await request.json();
 
-  if (!body.name_en || !body.name_ko) {
-    return NextResponse.json({ error: 'name_en and name_ko are required' }, { status: 400 });
+  if (!body.name_en) {
+    return NextResponse.json({ error: 'name_en is required' }, { status: 400 });
   }
 
   const slug = slugify(body.name_en, { lower: true, strict: true });

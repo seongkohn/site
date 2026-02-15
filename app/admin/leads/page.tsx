@@ -11,6 +11,8 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<LeadWithProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchLeads();
@@ -50,6 +52,39 @@ export default function LeadsPage() {
     }
   }
 
+  function toggleSelect(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === leads.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(leads.map((l) => l.id)));
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (!confirm(`Delete ${selected.size} lead(s)?`)) return;
+    setDeleting(true);
+    try {
+      await Promise.all([...selected].map((id) => fetch(`/api/leads/${id}`, { method: 'DELETE' })));
+      if (expandedId !== null && selected.has(expandedId)) {
+        setExpandedId(null);
+      }
+      setLeads((prev) => prev.filter((l) => !selected.has(l.id)));
+      setSelected(new Set());
+    } catch {
+      alert('Failed to delete some leads');
+    }
+    setDeleting(false);
+  }
+
   function toggleExpand(lead: LeadWithProduct) {
     if (expandedId === lead.id) {
       setExpandedId(null);
@@ -69,6 +104,19 @@ export default function LeadsPage() {
     <div>
       <h1 className="text-xl font-bold text-brand-navy mb-4">Leads</h1>
 
+      {/* Bulk delete */}
+      {selected.size > 0 && (
+        <div className="mb-4">
+          <button
+            onClick={handleBulkDelete}
+            disabled={deleting}
+            className="bg-red-500 text-white text-sm px-4 py-1.5 rounded hover:bg-red-600 transition disabled:opacity-50"
+          >
+            {deleting ? 'Deleting...' : `Delete Selected (${selected.size})`}
+          </button>
+        </div>
+      )}
+
       {leads.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400 text-sm">
           No leads yet.
@@ -78,6 +126,14 @@ export default function LeadsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="px-4 py-3 w-8">
+                  <input
+                    type="checkbox"
+                    checked={leads.length > 0 && selected.size === leads.length}
+                    onChange={toggleSelectAll}
+                    className="rounded border-gray-300"
+                  />
+                </th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Name</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Email</th>
                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Company</th>
@@ -96,6 +152,14 @@ export default function LeadsPage() {
                       !lead.is_read ? 'bg-brand-pale/30' : ''
                     }`}
                   >
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(lead.id)}
+                        onChange={() => toggleSelect(lead.id)}
+                        className="rounded border-gray-300"
+                      />
+                    </td>
                     <td className="px-4 py-3">
                       <span className={!lead.is_read ? 'font-semibold' : ''}>{lead.name}</span>
                     </td>
@@ -132,7 +196,7 @@ export default function LeadsPage() {
                   </tr>
                   {expandedId === lead.id && (
                     <tr key={`${lead.id}-detail`} className="border-b border-gray-100">
-                      <td colSpan={6} className="px-4 py-4 bg-gray-50">
+                      <td colSpan={7} className="px-4 py-4 bg-gray-50">
                         <div className="space-y-2 text-sm">
                           {lead.phone && (
                             <div>

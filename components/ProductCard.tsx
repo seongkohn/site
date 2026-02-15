@@ -2,22 +2,22 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useLanguage } from './LanguageProvider';
+import { useLanguage, localize } from './LanguageProvider';
 import type { Product } from '@/lib/types';
 
 export default function ProductCard({ product }: { product: Product }) {
   const { lang } = useLanguage();
 
-  const name = lang === 'en' ? product.name_en : product.name_ko;
-  const categoryName = lang === 'en' ? product.category_name_en : product.category_name_ko;
-  const brandName = lang === 'en' ? product.brand_name_en : product.brand_name_ko;
+  const name = localize(lang, product.name_en, product.name_ko);
+  const categoryName = localize(lang, product.category_name_en, product.category_name_ko);
+  const brandName = localize(lang, product.brand_name_en, product.brand_name_ko);
 
   return (
     <Link
       href={`/products/${product.slug}`}
-      className="group bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition"
+      className="block group bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition"
     >
-      <div className="aspect-[4/3] relative bg-brand-pale">
+      <div className="aspect-[4/3] relative bg-white">
         <Image
           src={product.image || '/placeholder-product.svg'}
           alt={name}

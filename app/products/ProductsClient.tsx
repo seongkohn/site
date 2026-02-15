@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useLanguage } from '@/components/LanguageProvider';
+import { useLanguage, localize } from '@/components/LanguageProvider';
 import { t } from '@/lib/i18n';
 import ProductCard from '@/components/ProductCard';
 import type { Product, Category, Type, Brand } from '@/lib/types';
@@ -187,7 +187,7 @@ export default function ProductsClient({
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <span>{lang === 'en' ? cat.name_en : cat.name_ko}</span>
+                <span>{localize(lang, cat.name_en, cat.name_ko)}</span>
                 {cat.children.length > 0 && (
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -220,7 +220,7 @@ export default function ProductsClient({
                             : 'text-gray-600 hover:bg-gray-50'
                         }`}
                       >
-                        <span>{lang === 'en' ? child.name_en : child.name_ko}</span>
+                        <span>{localize(lang, child.name_en, child.name_ko)}</span>
                         {child.children.length > 0 && (
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -248,7 +248,7 @@ export default function ProductsClient({
                                   : 'text-gray-500 hover:bg-gray-50'
                               }`}
                             >
-                              {lang === 'en' ? grandchild.name_en : grandchild.name_ko}
+                              {localize(lang, grandchild.name_en, grandchild.name_ko)}
                             </button>
                           ))}
                         </div>
@@ -288,7 +288,7 @@ export default function ProductsClient({
                   : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
-              {lang === 'en' ? typ.name_en : typ.name_ko}
+              {localize(lang, typ.name_en, typ.name_ko)}
             </button>
           ))}
         </div>
@@ -320,7 +320,7 @@ export default function ProductsClient({
                   : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
-              {lang === 'en' ? brand.name_en : brand.name_ko}
+              {localize(lang, brand.name_en, brand.name_ko)}
             </button>
           ))}
         </div>

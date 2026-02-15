@@ -44,17 +44,6 @@ export const translations = {
     reagents: { en: 'Reagents', ko: '시약' },
     reagentsDesc: { en: 'Stains, fixatives, mounting media', ko: '염색시약, 고정액, 마운팅 매체' },
   },
-  // Hero slides
-  heroSlides: {
-    slide1Title: { en: 'Transforming Diagnostics', ko: '진단의 혁신' },
-    slide1Sub: { en: 'Genius\u2122 Digital Cytology', ko: 'Genius\u2122 디지털 세포병리' },
-    slide2Title: { en: 'Advanced Imaging Solutions', ko: '고급 이미징 솔루션' },
-    slide2Sub: { en: 'PANNORAMIC 480 DX Digital Scanner', ko: 'PANNORAMIC 480 DX 디지털 스캐너' },
-    slide3Title: { en: 'Essential Histology Consumables', ko: '필수 조직병리 소모품' },
-    slide3Sub: { en: 'Premium Quality Slides & Reagents', ko: '프리미엄 품질 슬라이드 & 시약' },
-    slide4Title: { en: 'Remote Pathology Made Effortless', ko: '원격 병리학을 쉽게' },
-    slide4Sub: { en: 'Ocus Slide Scanners', ko: 'Ocus 슬라이드 스캐너' },
-  },
   products: {
     title: { en: 'Products', ko: '제품' },
     search: { en: 'Search...', ko: '검색...' },
@@ -78,12 +67,12 @@ export const translations = {
     title: { en: 'About Seongkohn', ko: '성곤무역 소개' },
     subtitle: { en: 'Advancing pathology in Korea since 1988', ko: '1988년 이래 한국 병리학의 발전을 이끌어 온 기업' },
     description1: {
-      en: 'Seongkohn Traders Corporation is a leading supplier of instruments, reagents, and consumables to pathology laboratories across Korea. Founded in 1988, our company has introduced a range of widely adopted technologies in the field of pathology.',
-      ko: '성곤무역(주)는 한국 전역의 병리 검사실에 장비, 시약, 소모품을 공급하는 선도적인 기업입니다. 1988년에 설립된 당사는 병리 분야에서 널리 채택된 다양한 기술을 도입해 왔습니다.',
+      en: 'Seongkohn is a leading supplier of instruments, reagents, and consumables to pathology laboratories across Korea. Our company is committed to innovation and excellence, having introduced a range of widely adopted technologies in the field, such as liquid-based cytology, digital pathology, and image analysis.',
+      ko: '성곤무역은 1988년 설립이래 국내 병리검사실의 자동화를 위한 필수 장비, 시약 및 소모품을 전문적으로 공급해온 해부병리분야의 선두 기업입니다. 혁신과 탁월함을 기업 이념으로 삼고 있는 저희는 세포원심분리기, 자동 면역염색기, 당일 진단 조직처리, 액상세포병리검사, 디지털 병리, 이미지 분석 등 이제는 병리검사에 널리 사용되고 있는 새로운 기술들을 국내최초로 도입해왔습니다.',
     },
     description2: {
-      en: 'From tissue processing and microtomy to digital pathology and AI-powered diagnostics, we partner with world-class manufacturers like Epredia, 3DHISTECH, Hologic, and Grundium to bring the best solutions to Korean pathology laboratories.',
-      ko: '조직처리 및 박절에서 디지털 병리 및 AI 기반 진단까지, Epredia, 3DHISTECH, Hologic, Grundium 등 세계적 제조업체와 파트너십을 맺고 최고의 솔루션을 제공합니다.',
+      en: 'Our focus remains on delivering high-quality, reliable solutions to meet the evolving needs of pathology labs nationwide.',
+      ko: '성곤무역은 높은 품질과 신뢰성 높은 솔루션을 지속적으로 제공함으로써, 병리검사실들이 직면한 다양하고 변화하는 요구사항을 충족시키기 위해 노력하고 있습니다.',
     },
     mission: { en: 'Our Mission', ko: '미션' },
     missionText: {
@@ -114,7 +103,7 @@ export const translations = {
     organization: { en: 'Organization', ko: '소속' },
     message: { en: 'Message', ko: '메시지' },
     send: { en: 'Send', ko: '보내기' },
-    success: { en: 'Sent! We\'ll respond soon.', ko: '전송 완료!' },
+    success: { en: 'Thank you for your inquiry. Our representative will reach out to you shortly.', ko: '문의해 주셔서 감사합니다. 담당자가 곧 연락드리겠습니다.' },
     error: { en: 'Failed to send message. Please try again.', ko: '메시지 전송에 실패했습니다. 다시 시도해 주세요.' },
     requiredName: { en: 'Please enter your name.', ko: '성함을 입력해 주세요.' },
     requiredEmail: { en: 'Please enter your email.', ko: '이메일을 입력해 주세요.' },

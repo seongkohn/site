@@ -16,6 +16,8 @@ export default function CategoriesPage() {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchCategories();
@@ -91,6 +93,36 @@ export default function CategoriesPage() {
     }
   }
 
+  function toggleSelect(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === categories.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(categories.map((c) => c.id)));
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (!confirm(`Delete ${selected.size} category(ies)?`)) return;
+    setDeleting(true);
+    try {
+      await Promise.all([...selected].map((id) => fetch(`/api/categories/${id}`, { method: 'DELETE' })));
+      setSelected(new Set());
+      await fetchCategories();
+    } catch {
+      alert('Failed to delete some categories');
+    }
+    setDeleting(false);
+  }
+
   async function handleMove(id: number, direction: 'up' | 'down') {
     try {
       await fetch('/api/reorder', {
@@ -149,7 +181,6 @@ export default function CategoriesPage() {
             <label className="block text-xs text-gray-400 mb-1">Name KO</label>
             <input
               type="text"
-              required
               value={form.name_ko}
               onChange={(e) => setForm({ ...form, name_ko: e.target.value })}
               className="border border-gray-200 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
@@ -187,11 +218,32 @@ export default function CategoriesPage() {
         </div>
       </form>
 
+      {/* Bulk delete */}
+      {selected.size > 0 && (
+        <div className="mb-4">
+          <button
+            onClick={handleBulkDelete}
+            disabled={deleting}
+            className="bg-red-500 text-white text-sm px-4 py-1.5 rounded hover:bg-red-600 transition disabled:opacity-50"
+          >
+            {deleting ? 'Deleting...' : `Delete Selected (${selected.size})`}
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
+              <th className="px-4 py-3 w-8">
+                <input
+                  type="checkbox"
+                  checked={categories.length > 0 && selected.size === categories.length}
+                  onChange={toggleSelectAll}
+                  className="rounded border-gray-300"
+                />
+              </th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Name EN</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Name KO</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Parent</th>
@@ -202,6 +254,14 @@ export default function CategoriesPage() {
           <tbody>
             {categories.map((cat) => (
               <tr key={cat.id} className="border-b border-gray-100 hover:bg-gray-50">
+                <td className="px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(cat.id)}
+                    onChange={() => toggleSelect(cat.id)}
+                    className="rounded border-gray-300"
+                  />
+                </td>
                 <td className="px-4 py-3">
                   {cat.parent_id && (
                     <span className="text-gray-300 mr-1">
@@ -246,7 +306,7 @@ export default function CategoriesPage() {
             ))}
             {categories.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">
+                <td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">
                   No categories yet.
                 </td>
               </tr>

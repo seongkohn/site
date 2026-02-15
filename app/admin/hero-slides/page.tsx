@@ -24,6 +24,8 @@ export default function HeroSlidesPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchSlides();
@@ -131,6 +133,36 @@ export default function HeroSlidesPage() {
     }
   }
 
+  function toggleSelect(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === slides.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(slides.map((s) => s.id)));
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (!confirm(`Delete ${selected.size} slide(s)?`)) return;
+    setDeleting(true);
+    try {
+      await Promise.all([...selected].map((id) => fetch(`/api/hero-slides/${id}`, { method: 'DELETE' })));
+      setSelected(new Set());
+      await fetchSlides();
+    } catch {
+      alert('Failed to delete some slides');
+    }
+    setDeleting(false);
+  }
+
   async function handleMove(id: number, direction: 'up' | 'down') {
     try {
       await fetch('/api/reorder', {
@@ -169,10 +201,9 @@ export default function HeroSlidesPage() {
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Title KO *</label>
+            <label className="block text-xs text-gray-400 mb-1">Title KO</label>
             <input
               type="text"
-              required
               value={form.title_ko}
               onChange={(e) => setForm({ ...form, title_ko: e.target.value })}
               className="w-full border border-gray-200 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
@@ -287,11 +318,32 @@ export default function HeroSlidesPage() {
         </div>
       </form>
 
+      {/* Bulk delete */}
+      {selected.size > 0 && (
+        <div className="mb-4">
+          <button
+            onClick={handleBulkDelete}
+            disabled={deleting}
+            className="bg-red-500 text-white text-sm px-4 py-1.5 rounded hover:bg-red-600 transition disabled:opacity-50"
+          >
+            {deleting ? 'Deleting...' : `Delete Selected (${selected.size})`}
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
+              <th className="px-4 py-3 w-8">
+                <input
+                  type="checkbox"
+                  checked={slides.length > 0 && selected.size === slides.length}
+                  onChange={toggleSelectAll}
+                  className="rounded border-gray-300"
+                />
+              </th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Image</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Title</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Style</th>
@@ -303,6 +355,14 @@ export default function HeroSlidesPage() {
           <tbody>
             {slides.map((slide) => (
               <tr key={slide.id} className="border-b border-gray-100 hover:bg-gray-50">
+                <td className="px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(slide.id)}
+                    onChange={() => toggleSelect(slide.id)}
+                    className="rounded border-gray-300"
+                  />
+                </td>
                 <td className="px-4 py-3">
                   {slide.image ? (
                     <Image src={slide.image} alt="" width={80} height={40} className="rounded border object-cover" />
@@ -358,7 +418,7 @@ export default function HeroSlidesPage() {
             ))}
             {slides.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">
+                <td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">
                   No hero slides yet.
                 </td>
               </tr>

@@ -1,6 +1,5 @@
 import { getDb } from './db';
 import { initializeSchema } from './schema';
-import bcryptjs from 'bcryptjs';
 
 export function seedDatabase() {
   initializeSchema();
@@ -169,10 +168,6 @@ export function seedDatabase() {
   insertSlide.run('Advanced Imaging Solutions', '고급 이미징 솔루션', 'PANNORAMIC 480 DX Digital Scanner', 'PANNORAMIC 480 DX 디지털 스캐너', '/images/hero/p480.png', 'dark', 'left', 2);
   insertSlide.run('Essential Histology Consumables', '필수 조직병리 소모품', 'Premium Quality Slides & Reagents', '프리미엄 품질 슬라이드 & 시약', '/images/hero/slide-banner.jpg', 'dark', 'left', 3);
   insertSlide.run('Remote Pathology Made Effortless', '원격 병리학을 쉽게', 'Ocus Slide Scanners', 'Ocus 슬라이드 스캐너', '/images/hero/ocus_banner.jpg', 'light', 'right', 4);
-
-  // Default admin user (password: admin123)
-  const hash = bcryptjs.hashSync('admin123', 10);
-  db.prepare('INSERT INTO admin_users (username, password_hash) VALUES (?, ?)').run('admin', hash);
 
   // Default settings
   const insertSetting = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)');

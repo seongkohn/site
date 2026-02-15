@@ -37,7 +37,7 @@ export function initializeSchema() {
     CREATE TABLE IF NOT EXISTS categories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name_en TEXT NOT NULL,
-      name_ko TEXT NOT NULL,
+      name_ko TEXT DEFAULT '',
       slug TEXT NOT NULL UNIQUE,
       parent_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
       sort_order INTEGER DEFAULT 0,
@@ -47,7 +47,7 @@ export function initializeSchema() {
     CREATE TABLE IF NOT EXISTS types (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name_en TEXT NOT NULL,
-      name_ko TEXT NOT NULL,
+      name_ko TEXT DEFAULT '',
       slug TEXT NOT NULL UNIQUE,
       sort_order INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
@@ -56,7 +56,7 @@ export function initializeSchema() {
     CREATE TABLE IF NOT EXISTS brands (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name_en TEXT NOT NULL,
-      name_ko TEXT NOT NULL,
+      name_ko TEXT DEFAULT '',
       slug TEXT NOT NULL UNIQUE,
       logo TEXT,
       website TEXT,
@@ -70,7 +70,7 @@ export function initializeSchema() {
     CREATE TABLE IF NOT EXISTS products (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name_en TEXT NOT NULL,
-      name_ko TEXT NOT NULL,
+      name_ko TEXT DEFAULT '',
       slug TEXT NOT NULL UNIQUE,
       sku TEXT NOT NULL,
       category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
@@ -91,7 +91,7 @@ export function initializeSchema() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
       name_en TEXT NOT NULL,
-      name_ko TEXT NOT NULL,
+      name_ko TEXT DEFAULT '',
       sku TEXT NOT NULL,
       sort_order INTEGER DEFAULT 0
     );
@@ -129,7 +129,7 @@ export function initializeSchema() {
     CREATE TABLE IF NOT EXISTS hero_slides (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title_en TEXT NOT NULL,
-      title_ko TEXT NOT NULL,
+      title_ko TEXT DEFAULT '',
       subtitle_en TEXT,
       subtitle_ko TEXT,
       image TEXT,
@@ -156,9 +156,9 @@ export function initializeSchema() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
       key_en TEXT NOT NULL,
-      key_ko TEXT NOT NULL,
+      key_ko TEXT DEFAULT '',
       value_en TEXT NOT NULL,
-      value_ko TEXT NOT NULL,
+      value_ko TEXT DEFAULT '',
       sort_order INTEGER DEFAULT 0
     );
   `);
@@ -166,6 +166,30 @@ export function initializeSchema() {
   // Migration: add detail_en/detail_ko to products if missing
   try { db.exec('ALTER TABLE products ADD COLUMN detail_en TEXT'); } catch {}
   try { db.exec('ALTER TABLE products ADD COLUMN detail_ko TEXT'); } catch {}
+
+  // Migration: add featured_order to products if missing
+  try { db.exec('ALTER TABLE products ADD COLUMN featured_order INTEGER DEFAULT 0'); } catch {}
+
+  // Migration: seed default SMTP settings if not present
+  const smtpDefaults: [string, string][] = [
+    ['smtp_from', 'noreply@seongkohn.com'],
+    ['contact_recipients', 'seongkohn@outlook.com'],
+    ['turnstile_enabled', 'false'],
+    ['leads_auto_delete_days', '30'],
+  ];
+  const upsertSetting = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING');
+  for (const [key, value] of smtpDefaults) {
+    upsertSetting.run(key, value);
+  }
+
+  // Migration: backfill product_images from products.image for products that have a thumbnail but no gallery images
+  db.exec(`
+    INSERT INTO product_images (product_id, url, type, sort_order)
+    SELECT id, image, 'image', 0
+    FROM products
+    WHERE image IS NOT NULL AND image != ''
+      AND id NOT IN (SELECT DISTINCT product_id FROM product_images)
+  `);
 
   // FTS5 virtual table for product search
   db.exec(`

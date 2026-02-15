@@ -3,6 +3,7 @@ import { getDb } from '@/lib/db';
 import { initializeSchema } from '@/lib/schema';
 import { seedDatabase } from '@/lib/seed';
 import { sendContactEmail } from '@/lib/email';
+import { verifyTurnstile } from '@/lib/turnstile';
 
 export async function POST(request: Request) {
   try {
@@ -10,7 +11,24 @@ export async function POST(request: Request) {
     seedDatabase();
 
     const body = await request.json();
-    const { name, email, phone, company, message, product_id } = body;
+    const {
+      name,
+      email,
+      phone,
+      company,
+      organization,
+      message,
+      product_id,
+      lang,
+      turnstileToken,
+    } = body;
+    const companyValue = organization || company || null;
+    const emailLang = lang === 'ko' ? 'ko' : 'en';
+
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined;
+    if (!await verifyTurnstile(turnstileToken || '', ip)) {
+      return NextResponse.json({ error: 'Verification failed' }, { status: 403 });
+    }
 
     if (!name || !email || !message) {
       return NextResponse.json(
@@ -25,7 +43,7 @@ export async function POST(request: Request) {
     db.prepare(`
       INSERT INTO leads (name, email, phone, company, message, product_id)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(name, email, phone || null, company || null, message, product_id || null);
+    `).run(name, email, phone || null, companyValue, message, product_id || null);
 
     // Get product name if product_id provided
     let productName: string | undefined;
@@ -34,10 +52,18 @@ export async function POST(request: Request) {
       productName = product?.name_en;
     }
 
-    // Send email (non-blocking — don't fail the request if email fails)
-    sendContactEmail({ name, email, phone, company, message, productName }).catch(console.error);
+    // Send email
+    const emailSent = await sendContactEmail({
+      name,
+      email,
+      phone,
+      company: companyValue || undefined,
+      message,
+      productName,
+      lang: emailLang,
+    });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, emailSent });
   } catch (error) {
     console.error('Contact form error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

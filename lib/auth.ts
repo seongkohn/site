@@ -19,7 +19,7 @@ export function verifyPassword(password: string, hash: string): boolean {
 }
 
 export function createToken(payload: { id: number; username: string }): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
 }
 
 export function verifyToken(token: string): { id: number; username: string } | null {
@@ -45,7 +45,7 @@ export function getTokenCookieOptions(token: string) {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax' as const,
     path: '/',
-    maxAge: 60 * 60 * 24 * 7, // 7 days
+    maxAge: 60 * 60 * 24, // 24 hours
   };
 }
 

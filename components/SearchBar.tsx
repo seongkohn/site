@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { useLanguage } from './LanguageProvider';
+import { useLanguage, localize } from './LanguageProvider';
 import { t } from '@/lib/i18n';
 import type { Category, Type } from '@/lib/types';
 
@@ -51,19 +51,19 @@ export default function SearchBar() {
     for (const parent of parentCategories) {
       options.push({
         value: String(parent.id),
-        label: lang === 'en' ? parent.name_en : parent.name_ko,
+        label: localize(lang, parent.name_en, parent.name_ko),
       });
       const children = childCategories.filter((c) => c.parent_id === parent.id);
       for (const child of children) {
         options.push({
           value: String(child.id),
-          label: `— ${lang === 'en' ? child.name_en : child.name_ko}`,
+          label: `— ${localize(lang, child.name_en, child.name_ko)}`,
         });
         const grandchildren = childCategories.filter((c) => c.parent_id === child.id);
         for (const grandchild of grandchildren) {
           options.push({
             value: String(grandchild.id),
-            label: `—— ${lang === 'en' ? grandchild.name_en : grandchild.name_ko}`,
+            label: `—— ${localize(lang, grandchild.name_en, grandchild.name_ko)}`,
           });
         }
       }
@@ -80,7 +80,7 @@ export default function SearchBar() {
           className="block px-3.5 py-2 text-[13px] text-gray-500 border-b border-gray-50 hover:bg-brand-pale hover:text-brand-magenta transition"
           onClick={() => setDropdownOpen(false)}
         >
-          {lang === 'en' ? cat.name_en : cat.name_ko}
+          {localize(lang, cat.name_en, cat.name_ko)}
         </Link>
       ))}
       <div className="border-t border-gray-200" />
@@ -91,7 +91,7 @@ export default function SearchBar() {
           className="block px-3.5 py-2 text-[13px] text-gray-500 font-medium border-b border-gray-50 hover:bg-brand-pale hover:text-brand-magenta transition"
           onClick={() => setDropdownOpen(false)}
         >
-          {lang === 'en' ? type.name_en : type.name_ko}
+          {localize(lang, type.name_en, type.name_ko)}
         </Link>
       ))}
     </>

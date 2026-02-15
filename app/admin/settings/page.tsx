@@ -10,6 +10,10 @@ interface SettingsForm {
   company_phone: string;
   company_fax: string;
   company_email: string;
+  smtp_from: string;
+  contact_recipients: string;
+  leads_auto_delete_days: string;
+  turnstile_enabled: string;
 }
 
 const emptySettings: SettingsForm = {
@@ -20,6 +24,10 @@ const emptySettings: SettingsForm = {
   company_phone: '',
   company_fax: '',
   company_email: '',
+  smtp_from: '',
+  contact_recipients: '',
+  leads_auto_delete_days: '30',
+  turnstile_enabled: 'false',
 };
 
 export default function SettingsPage() {
@@ -49,6 +57,10 @@ export default function SettingsPage() {
           company_phone: data.company_phone || '',
           company_fax: data.company_fax || '',
           company_email: data.company_email || '',
+          smtp_from: data.smtp_from || '',
+          contact_recipients: data.contact_recipients || '',
+          leads_auto_delete_days: data.leads_auto_delete_days || '30',
+          turnstile_enabled: data.turnstile_enabled || 'false',
         });
       })
       .catch(() => {})
@@ -88,8 +100,8 @@ export default function SettingsPage() {
       return;
     }
 
-    if (passwordForm.new_password.length < 6) {
-      setPwError('New password must be at least 6 characters.');
+    if (passwordForm.new_password.length < 8) {
+      setPwError('New password must be at least 8 characters.');
       return;
     }
 
@@ -217,6 +229,102 @@ export default function SettingsPage() {
             className="bg-brand-magenta text-white text-sm px-6 py-2 rounded hover:opacity-90 transition disabled:opacity-50"
           >
             {saving ? 'Saving...' : 'Save Settings'}
+          </button>
+        </div>
+      </form>
+
+      {/* Email Notifications */}
+      <form onSubmit={handleSaveSettings} className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h2 className="text-sm font-bold text-brand-navy mb-4">Email Notifications</h2>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Notification Recipients</label>
+            <input
+              type="text"
+              value={settings.contact_recipients}
+              onChange={(e) => setSettings({ ...settings, contact_recipients: e.target.value })}
+              placeholder="email1@example.com, email2@example.com"
+              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+            />
+            <p className="text-xs text-gray-400 mt-1">Comma-separated list of email addresses that receive contact form notifications.</p>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">From Address</label>
+            <input
+              type="email"
+              value={settings.smtp_from}
+              onChange={(e) => setSettings({ ...settings, smtp_from: e.target.value })}
+              placeholder="noreply@seongkohn.com"
+              className="w-full max-w-md border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+            />
+            <p className="text-xs text-gray-400 mt-1">The sender address shown on outgoing notification emails.</p>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <button
+            type="submit"
+            disabled={saving}
+            className="bg-brand-magenta text-white text-sm px-6 py-2 rounded hover:opacity-90 transition disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </form>
+
+      {/* Lead Management */}
+      <form onSubmit={handleSaveSettings} className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h2 className="text-sm font-bold text-brand-navy mb-4">Lead Management</h2>
+        <div className="max-w-xs">
+          <label className="block text-xs text-gray-400 mb-1">Auto-delete leads after (days)</label>
+          <input
+            type="number"
+            min="0"
+            value={settings.leads_auto_delete_days}
+            onChange={(e) => setSettings({ ...settings, leads_auto_delete_days: e.target.value })}
+            className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+          />
+          <p className="text-xs text-gray-400 mt-1">Set to 0 to disable auto-deletion.</p>
+        </div>
+        <div className="mt-4">
+          <button
+            type="submit"
+            disabled={saving}
+            className="bg-brand-magenta text-white text-sm px-6 py-2 rounded hover:opacity-90 transition disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </form>
+
+      {/* Turnstile / Spam Protection */}
+      <form onSubmit={handleSaveSettings} className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h2 className="text-sm font-bold text-brand-navy mb-4">Spam Protection (Cloudflare Turnstile)</h2>
+        <div className="flex items-center gap-3">
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={settings.turnstile_enabled === 'true'}
+              onChange={(e) => setSettings({ ...settings, turnstile_enabled: e.target.checked ? 'true' : 'false' })}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-brand-purple rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-magenta"></div>
+          </label>
+          <span className="text-sm text-gray-700">
+            {settings.turnstile_enabled === 'true' ? 'Enabled' : 'Disabled'}
+          </span>
+        </div>
+        <p className="text-xs text-gray-400 mt-2">
+          When enabled, contact and login forms require Cloudflare Turnstile verification. Disable for local development/testing.
+        </p>
+        <div className="mt-4">
+          <button
+            type="submit"
+            disabled={saving}
+            className="bg-brand-magenta text-white text-sm px-6 py-2 rounded hover:opacity-90 transition disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
       </form>

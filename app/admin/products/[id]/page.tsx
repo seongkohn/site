@@ -4,6 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Category, Type, Brand, Product } from '@/lib/types';
+import RichTextEditor from '@/components/RichTextEditor';
 
 interface VariantRow {
   name_en: string;
@@ -84,9 +85,10 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
   const [error, setError] = useState('');
+  const [thumbnailIndex, setThumbnailIndex] = useState(0);
+  const [relatedSearch, setRelatedSearch] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -114,6 +116,18 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
           // Map variant_id to variant_index based on loaded variants order
           const variantIdList = (productData.variants || []).map((v: { id: number }) => v.id);
 
+          const loadedImages = (productData.images || []).map((img: { url: string; type: string; alt_en: string; alt_ko: string; variant_id: number | null }) => ({
+            url: img.url,
+            type: img.type as 'image' | 'video',
+            alt_en: img.alt_en || '',
+            alt_ko: img.alt_ko || '',
+            variant_index: img.variant_id ? variantIdList.indexOf(img.variant_id) : null,
+          }));
+
+          // Find which gallery image matches the current thumbnail
+          const thumbIdx = loadedImages.findIndex((img: GalleryImageRow) => img.url === p.image);
+          setThumbnailIndex(thumbIdx >= 0 ? thumbIdx : 0);
+
           setForm({
             name_en: p.name_en || '',
             name_ko: p.name_ko || '',
@@ -133,13 +147,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
             is_featured: !!p.is_featured,
             related_ids: productData.related_ids || [],
             variants: loadedVariants,
-            images: (productData.images || []).map((img: { url: string; type: string; alt_en: string; alt_ko: string; variant_id: number | null }) => ({
-              url: img.url,
-              type: img.type as 'image' | 'video',
-              alt_en: img.alt_en || '',
-              alt_ko: img.alt_ko || '',
-              variant_index: img.variant_id ? variantIdList.indexOf(img.variant_id) : null,
-            })),
+            images: loadedImages,
             specs: (productData.specs || []).map((s: { key_en: string; key_ko: string; value_en: string; value_ko: string }) => ({
               key_en: s.key_en,
               key_ko: s.key_ko,
@@ -160,29 +168,6 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-')
       .trim();
-  }
-
-  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-    try {
-      const formData = new window.FormData();
-      formData.append('file', file);
-      const res = await fetch('/api/upload', { method: 'POST', body: formData });
-      if (!res.ok) {
-        const err = await res.json();
-        alert(err.error || 'Upload failed');
-        return;
-      }
-      const data = await res.json();
-      setForm((prev) => ({ ...prev, image: data.url }));
-    } catch {
-      alert('Upload failed');
-    } finally {
-      setUploading(false);
-    }
   }
 
   async function handleGalleryUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -270,6 +255,10 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
     setSaving(true);
 
     try {
+      // Derive thumbnail from gallery selection
+      const imageFiles = form.images.filter((img) => img.url && img.type === 'image');
+      const thumbnailUrl = imageFiles[thumbnailIndex]?.url || imageFiles[0]?.url || form.image || null;
+
       const payload = {
         name_en: form.name_en,
         name_ko: form.name_ko,
@@ -284,7 +273,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
         features_ko: form.features_ko || null,
         detail_en: form.detail_en || null,
         detail_ko: form.detail_ko || null,
-        image: form.image || null,
+        image: thumbnailUrl,
         is_published: form.is_published ? 1 : 0,
         is_featured: form.is_featured ? 1 : 0,
         related_ids: form.related_ids,
@@ -399,7 +388,6 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
             <label className="block text-xs font-medium text-gray-500 mb-1">Name (Korean)</label>
             <input
               type="text"
-              required
               value={form.name_ko}
               onChange={(e) => setForm({ ...form, name_ko: e.target.value })}
               className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
@@ -596,37 +584,10 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        {/* Image */}
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Product Image (Thumbnail)</label>
-          <div className="flex items-center gap-4">
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/svg+xml,image/gif,image/tiff,image/bmp"
-              onChange={handleImageUpload}
-              className="text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:bg-brand-pale file:text-brand-navy hover:file:bg-gray-200"
-            />
-            {uploading && <span className="text-xs text-gray-400">Uploading...</span>}
-          </div>
-          {form.image && (
-            <div className="mt-2 flex items-center gap-3">
-              <img src={form.image} alt="Preview" className="w-16 h-16 object-contain border border-gray-200 rounded" />
-              <span className="text-xs text-gray-400">{form.image}</span>
-              <button
-                type="button"
-                onClick={() => setForm({ ...form, image: '' })}
-                className="text-xs text-red-500 hover:text-red-700"
-              >
-                Remove
-              </button>
-            </div>
-          )}
-        </div>
-
         {/* Gallery Images */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="block text-xs font-medium text-gray-500">Gallery Images</label>
+            <label className="block text-xs font-medium text-gray-500">Images &amp; Thumbnail</label>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -648,15 +609,25 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
           </div>
           {uploadingGallery && <p className="text-xs text-gray-400 mb-2">Uploading...</p>}
           {form.images.length === 0 ? (
-            <p className="text-xs text-gray-400">No gallery images. The product thumbnail will be used as the main image.</p>
+            <p className="text-xs text-gray-400">No images yet. Upload at least one image — the first will be used as the thumbnail.</p>
           ) : (
             <div className="space-y-2">
               {form.images.map((img, i) => (
                 <div key={i} className="border border-gray-200 rounded p-3 flex items-start gap-3">
-                  {/* Preview / URL */}
-                  <div className="shrink-0 w-16">
+                  {/* Thumbnail selector + Preview */}
+                  <div className="shrink-0 w-16 flex flex-col items-center gap-1">
                     {img.type === 'image' && img.url ? (
-                      <img src={img.url} alt="" className="w-16 h-16 object-contain border border-gray-100 rounded" />
+                      <>
+                        <img src={img.url} alt="" className={`w-16 h-16 object-contain border-2 rounded ${thumbnailIndex === i ? 'border-brand-magenta' : 'border-gray-100'}`} />
+                        <button
+                          type="button"
+                          onClick={() => setThumbnailIndex(i)}
+                          className={`text-xs px-1.5 py-0.5 rounded ${thumbnailIndex === i ? 'bg-brand-magenta text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                          title="Use as thumbnail"
+                        >
+                          {thumbnailIndex === i ? 'Thumb' : 'Set'}
+                        </button>
+                      </>
                     ) : (
                       <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs">
                         {img.type === 'video' ? 'Video' : 'N/A'}
@@ -813,25 +784,19 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Detailed Description (English)</label>
-            <textarea
-              rows={8}
+            <RichTextEditor
               value={form.detail_en}
-              onChange={(e) => setForm({ ...form, detail_en: e.target.value })}
+              onChange={(value) => setForm((prev) => ({ ...prev, detail_en: value }))}
               placeholder="Long-form product description..."
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-purple"
             />
-            <p className="text-xs text-gray-400 mt-1">Supports markdown formatting (bold, lists, headings)</p>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Detailed Description (Korean)</label>
-            <textarea
-              rows={8}
+            <RichTextEditor
               value={form.detail_ko}
-              onChange={(e) => setForm({ ...form, detail_ko: e.target.value })}
+              onChange={(value) => setForm((prev) => ({ ...prev, detail_ko: value }))}
               placeholder="..."
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-purple"
             />
-            <p className="text-xs text-gray-400 mt-1">Supports markdown formatting (bold, lists, headings)</p>
           </div>
         </div>
 
@@ -861,19 +826,70 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
         {otherProducts.length > 0 && (
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-2">Related Products</label>
-            <div className="border border-gray-200 rounded p-3 max-h-48 overflow-y-auto space-y-1">
-              {otherProducts.map((p) => (
-                <label key={p.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form.related_ids.includes(p.id)}
-                    onChange={() => toggleRelated(p.id)}
-                    className="rounded border-gray-300"
-                  />
-                  <span>{p.name_en}</span>
-                  <span className="text-xs text-gray-400 font-mono">{p.sku}</span>
-                </label>
-              ))}
+            {/* Selected related products as chips */}
+            {form.related_ids.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {form.related_ids.map((rid) => {
+                  const rp = otherProducts.find((p) => p.id === rid);
+                  if (!rp) return null;
+                  return (
+                    <span
+                      key={rid}
+                      className="inline-flex items-center gap-1 bg-brand-pale text-brand-navy text-xs px-2.5 py-1 rounded-full"
+                    >
+                      {rp.name_en}
+                      <button
+                        type="button"
+                        onClick={() => toggleRelated(rid)}
+                        className="text-gray-400 hover:text-red-500 ml-0.5"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+            {/* Search input */}
+            <div className="relative">
+              <input
+                type="text"
+                value={relatedSearch}
+                onChange={(e) => setRelatedSearch(e.target.value)}
+                placeholder="Search products by name or SKU..."
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+              />
+              {relatedSearch && (
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-48 overflow-y-auto">
+                  {otherProducts
+                    .filter((p) => {
+                      if (form.related_ids.includes(p.id)) return false;
+                      const q = relatedSearch.toLowerCase();
+                      return p.name_en.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
+                    })
+                    .slice(0, 20)
+                    .map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => { toggleRelated(p.id); setRelatedSearch(''); }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-brand-pale flex items-center justify-between"
+                      >
+                        <span>{p.name_en}</span>
+                        <span className="text-xs text-gray-400 font-mono">{p.sku}</span>
+                      </button>
+                    ))}
+                  {otherProducts.filter((p) => {
+                    if (form.related_ids.includes(p.id)) return false;
+                    const q = relatedSearch.toLowerCase();
+                    return p.name_en.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
+                  }).length === 0 && (
+                    <div className="px-3 py-2 text-xs text-gray-400">No matching products</div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}

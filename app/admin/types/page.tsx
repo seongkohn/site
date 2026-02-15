@@ -11,6 +11,8 @@ export default function TypesPage() {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchTypes();
@@ -83,6 +85,36 @@ export default function TypesPage() {
     }
   }
 
+  function toggleSelect(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === types.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(types.map((t) => t.id)));
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (!confirm(`Delete ${selected.size} type(s)?`)) return;
+    setDeleting(true);
+    try {
+      await Promise.all([...selected].map((id) => fetch(`/api/types/${id}`, { method: 'DELETE' })));
+      setSelected(new Set());
+      await fetchTypes();
+    } catch {
+      alert('Failed to delete some types');
+    }
+    setDeleting(false);
+  }
+
   async function handleMove(id: number, direction: 'up' | 'down') {
     try {
       await fetch('/api/reorder', {
@@ -124,7 +156,6 @@ export default function TypesPage() {
             <label className="block text-xs text-gray-400 mb-1">Name KO</label>
             <input
               type="text"
-              required
               value={form.name_ko}
               onChange={(e) => setForm({ ...form, name_ko: e.target.value })}
               className="border border-gray-200 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
@@ -149,11 +180,32 @@ export default function TypesPage() {
         </div>
       </form>
 
+      {/* Bulk delete */}
+      {selected.size > 0 && (
+        <div className="mb-4">
+          <button
+            onClick={handleBulkDelete}
+            disabled={deleting}
+            className="bg-red-500 text-white text-sm px-4 py-1.5 rounded hover:bg-red-600 transition disabled:opacity-50"
+          >
+            {deleting ? 'Deleting...' : `Delete Selected (${selected.size})`}
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 bg-gray-50">
+              <th className="px-4 py-3 w-8">
+                <input
+                  type="checkbox"
+                  checked={types.length > 0 && selected.size === types.length}
+                  onChange={toggleSelectAll}
+                  className="rounded border-gray-300"
+                />
+              </th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Name EN</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Name KO</th>
               <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase">Order</th>
@@ -163,6 +215,14 @@ export default function TypesPage() {
           <tbody>
             {types.map((type) => (
               <tr key={type.id} className="border-b border-gray-100 hover:bg-gray-50">
+                <td className="px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(type.id)}
+                    onChange={() => toggleSelect(type.id)}
+                    className="rounded border-gray-300"
+                  />
+                </td>
                 <td className="px-4 py-3">{type.name_en}</td>
                 <td className="px-4 py-3 text-gray-600">{type.name_ko}</td>
                 <td className="px-4 py-3 text-center">
@@ -199,7 +259,7 @@ export default function TypesPage() {
             ))}
             {types.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-gray-400 text-sm">
+                <td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">
                   No types yet.
                 </td>
               </tr>

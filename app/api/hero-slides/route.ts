@@ -35,8 +35,8 @@ export async function POST(request: NextRequest) {
   const db = getDb();
   const body = await request.json();
 
-  if (!body.title_en || !body.title_ko) {
-    return NextResponse.json({ error: 'title_en and title_ko are required' }, { status: 400 });
+  if (!body.title_en) {
+    return NextResponse.json({ error: 'title_en is required' }, { status: 400 });
   }
 
   const result = db.prepare(`
