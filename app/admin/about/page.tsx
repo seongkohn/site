@@ -243,7 +243,7 @@ export default function AdminAboutPage() {
               : 'text-red-600 bg-red-50 border-red-200'
           }`}
         >
-          {ta(messageKey, lang)}
+          {ta(messageKey!, lang)}
         </div>
       )}
 
