@@ -48,7 +48,7 @@ export default function FeaturedProductsPage() {
       .slice(0, 20);
   }, [products, search]);
 
-  async function handleReorder(orderedIds: number[]) {
+  async function handleReorder(orderedIds: (number | string)[]) {
     const prev = products;
     // Optimistically update featured_order
     setProducts((prods) => {
