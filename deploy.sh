@@ -16,8 +16,10 @@ npm run build
 echo "==> Setting up standalone symlinks and static files..."
 mkdir -p data
 cp -r .next/static .next/standalone/.next/static
-ln -sfn "$APP_DIR/public" .next/standalone/public
-ln -sfn "$APP_DIR/data" .next/standalone/data
+rm -rf .next/standalone/public
+ln -sf "$APP_DIR/public" .next/standalone/public
+rm -rf .next/standalone/data
+ln -sf "$APP_DIR/data" .next/standalone/data
 ln -sf "$APP_DIR/.env.local" .next/standalone/.env.local
 
 echo "==> Restarting PM2..."

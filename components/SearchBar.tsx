@@ -219,11 +219,11 @@ export default function SearchBar() {
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-gray-800 truncate">
-                          {lang === 'en' ? product.name_en : product.name_ko}
+                          {localize(lang, product.name_en, product.name_ko)}
                         </div>
                         {product.brand_name_en && (
                           <div className="text-xs text-gray-500 truncate">
-                            {lang === 'en' ? product.brand_name_en : product.brand_name_ko || product.brand_name_en}
+                            {localize(lang, product.brand_name_en, product.brand_name_ko)}
                           </div>
                         )}
                       </div>
