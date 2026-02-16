@@ -144,7 +144,7 @@ export function seedDatabase() {
   // 8. HALO Image Analysis Platform (3DHISTECH, Digital Pathology > Image Analysis, Software)
   insertProd.run(
     'HALO\u00ae Image Analysis Platform', 'HALO\u00ae 이미지 분석 플랫폼', 'halo', 'HALO-V4',
-    16, 4, 2,
+    16, 1, 2,
     'Quantitative tissue analysis software for brightfield and fluorescence whole slide images with AI and machine learning tools.',
     'AI 및 머신러닝 도구가 포함된 정량적 조직 분석 소프트웨어.',
     'Quantitative tissue analysis\nAI/ML modules\nMultiplex analysis\nSpatial biology tools',
