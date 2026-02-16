@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { isIndexingEnabled } from '@/lib/site-visibility';
 
-export function middleware() {
+export function proxy() {
   const response = NextResponse.next();
 
   if (!isIndexingEnabled()) {

@@ -17,6 +17,10 @@ export async function GET(request: NextRequest) {
   const adminOnly = request.nextUrl.searchParams.get('all') === '1';
 
   if (adminOnly) {
+    const user = await getAdminUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const slides = db.prepare('SELECT * FROM hero_slides ORDER BY sort_order, id').all();
     return NextResponse.json(slides);
   }

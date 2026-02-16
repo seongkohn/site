@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import type { Category, Type, Brand, Product } from '@/lib/types';
 import RichTextEditor from '@/components/RichTextEditor';
 import { useLanguage } from '@/components/LanguageProvider';
@@ -102,7 +103,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
       fetch('/api/categories').then((r) => r.json()),
       fetch('/api/types').then((r) => r.json()),
       fetch('/api/brands').then((r) => r.json()),
-      fetch('/api/products').then((r) => r.json()),
+      fetch('/api/products?admin=1&limit=9999').then((r) => r.json()),
       isNew ? Promise.resolve(null) : fetch(`/api/products/${id}`).then((r) => r.json()),
     ])
       .then(([cats, typs, brds, prods, productData]) => {
@@ -495,9 +496,11 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
                   {form.images.map((img, i) => (
                     <div key={i} className="relative group">
                       {img.type === 'image' && img.url ? (
-                        <img
+                        <Image
                           src={img.url}
                           alt=""
+                          width={220}
+                          height={220}
                           className={`w-full aspect-square object-contain border-2 rounded cursor-pointer ${thumbnailIndex === i ? 'border-brand-magenta' : 'border-gray-100'}`}
                           onClick={() => setExpandedImageIndex(expandedImageIndex === i ? null : i)}
                         />

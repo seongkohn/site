@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import {
   DndContext,
@@ -310,7 +311,7 @@ export default function BrandsPage() {
               {uploading && <span className="text-xs text-gray-400">{ta('common.uploading', lang)}</span>}
               {form.logo && (
                 <span className="flex items-center gap-2">
-                  <img src={form.logo} alt="Logo" className="w-8 h-8 object-contain" />
+                  <Image src={form.logo} alt="Logo" width={32} height={32} className="w-8 h-8 object-contain" />
                   <button type="button" onClick={() => setForm({ ...form, logo: '' })} className="text-xs text-red-500">
                     {ta('common.remove', lang)}
                   </button>
@@ -406,7 +407,7 @@ export default function BrandsPage() {
                         </td>
                         <td className="px-4 py-3">
                           {brand.logo ? (
-                            <img src={brand.logo} alt={brand.name_en} className="w-8 h-8 object-contain" />
+                            <Image src={brand.logo} alt={brand.name_en} width={32} height={32} className="w-8 h-8 object-contain" />
                           ) : (
                             <span className="text-gray-300 text-xs">--</span>
                           )}

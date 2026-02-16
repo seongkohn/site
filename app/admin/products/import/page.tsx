@@ -5,6 +5,16 @@ import Link from 'next/link';
 import { useLanguage } from '@/components/LanguageProvider';
 import { ta } from '@/lib/i18n-admin';
 
+interface CsvProductRow {
+  [key: string]: string | null;
+}
+
+interface ImportResult {
+  created: number;
+  updated: number;
+  errors: string[];
+}
+
 function parseCSVLine(line: string): string[] {
   const result: string[] = [];
   let current = '';
@@ -40,7 +50,7 @@ export default function ImportProductsPage() {
   const { lang } = useLanguage();
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<ImportResult | null>(null);
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const [errorText, setErrorText] = useState('');
 
@@ -67,12 +77,12 @@ export default function ImportProductsPage() {
       }
 
       const headers = parseCSVLine(lines[0]);
-      const products = [];
+      const products: CsvProductRow[] = [];
 
       for (let i = 1; i < lines.length; i++) {
         if (!lines[i].trim()) continue;
         const values = parseCSVLine(lines[i]);
-        const product: any = {};
+        const product: CsvProductRow = {};
         headers.forEach((h, idx) => {
           product[h] = values[idx] || null;
         });
@@ -101,7 +111,7 @@ export default function ImportProductsPage() {
       const data = await res.json();
       setResult(data);
       setFile(null);
-    } catch (err) {
+    } catch {
       setErrorKey('import.parseFailed');
     }
     setLoading(false);

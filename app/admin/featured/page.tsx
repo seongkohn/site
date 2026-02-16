@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import type { Product } from '@/lib/types';
@@ -20,7 +21,7 @@ export default function FeaturedProductsPage() {
 
   async function fetchProducts() {
     try {
-      const res = await fetch('/api/products?limit=9999');
+      const res = await fetch('/api/products?admin=1&limit=9999');
       const data = await res.json();
       setProducts(data.products || data);
     } catch {
@@ -125,7 +126,7 @@ export default function FeaturedProductsPage() {
                         <DragHandle listeners={listeners} attributes={attributes} />
                         <span className="text-sm text-gray-400 w-6 text-right font-mono">{i + 1}</span>
                         {product.image && (
-                          <img src={product.image} alt="" className="w-10 h-10 object-contain border border-gray-100 rounded" />
+                          <Image src={product.image} alt="" width={40} height={40} className="w-10 h-10 object-contain border border-gray-100 rounded" />
                         )}
                         <div>
                           <span className="text-sm font-medium text-brand-navy">{product.name_en}</span>
@@ -174,10 +175,10 @@ export default function FeaturedProductsPage() {
             ) : (
               nonFeatured.map((product) => (
                 <div key={product.id} className="flex items-center justify-between px-4 py-2.5">
-                  <div className="flex items-center gap-3">
-                    {product.image && (
-                      <img src={product.image} alt="" className="w-8 h-8 object-contain border border-gray-100 rounded" />
-                    )}
+                    <div className="flex items-center gap-3">
+                      {product.image && (
+                        <Image src={product.image} alt="" width={32} height={32} className="w-8 h-8 object-contain border border-gray-100 rounded" />
+                      )}
                     <div>
                       <span className="text-sm text-brand-navy">{product.name_en}</span>
                       <span className="text-xs text-gray-400 font-mono ml-2">{product.sku}</span>

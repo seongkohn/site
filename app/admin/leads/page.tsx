@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import type { Lead } from '@/lib/types';
 import { useLanguage } from '@/components/LanguageProvider';
 import { ta } from '@/lib/i18n-admin';
@@ -17,11 +17,7 @@ export default function LeadsPage() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
-    fetchLeads();
-  }, []);
-
-  async function fetchLeads() {
+  const fetchLeads = useCallback(async () => {
     try {
       const res = await fetch('/api/leads');
       setLeads(await res.json());
@@ -29,7 +25,14 @@ export default function LeadsPage() {
       // error
     }
     setLoading(false);
-  }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchLeads();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchLeads]);
 
   async function markAsRead(id: number) {
     try {
@@ -147,9 +150,8 @@ export default function LeadsPage() {
             </thead>
             <tbody>
               {leads.map((lead) => (
-                <>
+                <Fragment key={lead.id}>
                   <tr
-                    key={lead.id}
                     onClick={() => toggleExpand(lead)}
                     className={`border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${
                       !lead.is_read ? 'bg-brand-pale/30' : ''
@@ -221,7 +223,7 @@ export default function LeadsPage() {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import type { Product } from '@/lib/types';
@@ -36,7 +36,7 @@ export default function ProductsPage() {
 
   async function fetchProducts() {
     try {
-      const res = await fetch('/api/products?limit=9999');
+      const res = await fetch('/api/products?admin=1&limit=9999');
       const data = await res.json();
       setProducts(data.products || data);
     } catch {

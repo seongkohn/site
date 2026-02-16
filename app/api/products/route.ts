@@ -17,6 +17,13 @@ export async function GET(request: NextRequest) {
     const db = getDb();
 
     const { searchParams } = request.nextUrl;
+    const adminMode = searchParams.get('admin') === '1';
+    if (adminMode) {
+      const user = await getAdminUser();
+      if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+    }
     const category = searchParams.get('category');
     const type = searchParams.get('type');
     const brand = searchParams.get('brand');
@@ -25,7 +32,10 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '12', 10)));
     const offset = (page - 1) * limit;
 
-    const conditions: string[] = ['p.is_published = 1'];
+    const conditions: string[] = [];
+    if (!adminMode) {
+      conditions.push('p.is_published = 1');
+    }
     const params: (string | number)[] = [];
 
     if (search) {
@@ -131,68 +141,70 @@ export async function POST(request: Request) {
     const slug = body.slug || slugify(name_en, { lower: true, strict: true });
     const skuValue = productMode === 'variable' ? validVariants[0].sku : sku;
 
-    const result = db.prepare(`
-      INSERT INTO products (name_en, name_ko, mode, slug, sku, category_id, type_id, brand_id,
-        description_en, description_ko, features_en, features_ko, detail_en, detail_ko,
-        image, is_published, is_featured)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      name_en, name_ko, productMode, slug, skuValue,
-      category_id || null, type_id || null, brand_id || null,
-      description_en || null, description_ko || null,
-      features_en || null, features_ko || null,
-      detail_en || null, detail_ko || null,
-      image || null,
-      is_published ?? 1, is_featured ?? 0,
-    );
+    const createProduct = db.transaction(() => {
+      const result = db.prepare(`
+        INSERT INTO products (name_en, name_ko, mode, slug, sku, category_id, type_id, brand_id,
+          description_en, description_ko, features_en, features_ko, detail_en, detail_ko,
+          image, is_published, is_featured)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        name_en, name_ko, productMode, slug, skuValue,
+        category_id || null, type_id || null, brand_id || null,
+        description_en || null, description_ko || null,
+        features_en || null, features_ko || null,
+        detail_en || null, detail_ko || null,
+        image || null,
+        is_published ?? 1, is_featured ?? 0,
+      );
+      const productId = Number(result.lastInsertRowid);
 
-    // Handle related products
-    if (body.related_ids && Array.isArray(body.related_ids)) {
-      const insertRelated = db.prepare('INSERT INTO product_related (product_id, related_id) VALUES (?, ?)');
-      for (const relatedId of body.related_ids) {
-        insertRelated.run(result.lastInsertRowid, relatedId);
+      if (body.related_ids && Array.isArray(body.related_ids)) {
+        const insertRelated = db.prepare('INSERT INTO product_related (product_id, related_id) VALUES (?, ?)');
+        for (const relatedId of body.related_ids) {
+          insertRelated.run(productId, relatedId);
+        }
       }
-    }
 
-    // Handle variants
-    if (productMode === 'variable') {
-      const insertVariant = db.prepare('INSERT INTO product_variants (product_id, name_en, name_ko, sku, sort_order) VALUES (?, ?, ?, ?, ?)');
-      validVariants.forEach((v: { name_en: string; name_ko: string; sku: string }, i: number) => {
-        if (v.name_en && v.sku) {
-          insertVariant.run(result.lastInsertRowid, v.name_en, v.name_ko || '', v.sku, i);
-        }
-      });
-    }
+      if (productMode === 'variable') {
+        const insertVariant = db.prepare('INSERT INTO product_variants (product_id, name_en, name_ko, sku, sort_order) VALUES (?, ?, ?, ?, ?)');
+        validVariants.forEach((v: { name_en: string; name_ko: string; sku: string }, i: number) => {
+          if (v.name_en && v.sku) {
+            insertVariant.run(productId, v.name_en, v.name_ko || '', v.sku, i);
+          }
+        });
+      }
 
-    // Handle gallery images
-    if (body.images && Array.isArray(body.images)) {
-      const newVariants = db.prepare('SELECT * FROM product_variants WHERE product_id = ? ORDER BY sort_order, id').all(result.lastInsertRowid) as { id: number }[];
-      const insertImage = db.prepare(
-        'INSERT INTO product_images (product_id, url, type, alt_en, alt_ko, variant_id, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)'
-      );
-      body.images.forEach((img: { url: string; type?: string; alt_en?: string; alt_ko?: string; variant_index?: number }, i: number) => {
-        if (img.url) {
-          const variantId = img.variant_index !== undefined && img.variant_index !== null && img.variant_index >= 0
-            ? (newVariants[img.variant_index]?.id ?? null)
-            : null;
-          insertImage.run(result.lastInsertRowid, img.url, img.type || 'image', img.alt_en || null, img.alt_ko || null, variantId, i);
-        }
-      });
-    }
+      if (body.images && Array.isArray(body.images)) {
+        const newVariants = db.prepare('SELECT * FROM product_variants WHERE product_id = ? ORDER BY sort_order, id').all(productId) as { id: number }[];
+        const insertImage = db.prepare(
+          'INSERT INTO product_images (product_id, url, type, alt_en, alt_ko, variant_id, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        );
+        body.images.forEach((img: { url: string; type?: string; alt_en?: string; alt_ko?: string; variant_index?: number }, i: number) => {
+          if (img.url) {
+            const variantId = img.variant_index !== undefined && img.variant_index !== null && img.variant_index >= 0
+              ? (newVariants[img.variant_index]?.id ?? null)
+              : null;
+            insertImage.run(productId, img.url, img.type || 'image', img.alt_en || null, img.alt_ko || null, variantId, i);
+          }
+        });
+      }
 
-    // Handle specs
-    if (body.specs && Array.isArray(body.specs)) {
-      const insertSpec = db.prepare(
-        'INSERT INTO product_specs (product_id, key_en, key_ko, value_en, value_ko, sort_order) VALUES (?, ?, ?, ?, ?, ?)'
-      );
-      body.specs.forEach((s: { key_en: string; key_ko: string; value_en: string; value_ko: string }, i: number) => {
-        if (s.key_en && s.value_en) {
-          insertSpec.run(result.lastInsertRowid, s.key_en, s.key_ko || '', s.value_en, s.value_ko || '', i);
-        }
-      });
-    }
+      if (body.specs && Array.isArray(body.specs)) {
+        const insertSpec = db.prepare(
+          'INSERT INTO product_specs (product_id, key_en, key_ko, value_en, value_ko, sort_order) VALUES (?, ?, ?, ?, ?, ?)'
+        );
+        body.specs.forEach((s: { key_en: string; key_ko: string; value_en: string; value_ko: string }, i: number) => {
+          if (s.key_en && s.value_en) {
+            insertSpec.run(productId, s.key_en, s.key_ko || '', s.value_en, s.value_ko || '', i);
+          }
+        });
+      }
 
-    const product = db.prepare('SELECT * FROM products WHERE id = ?').get(result.lastInsertRowid) as Product;
+      return productId;
+    });
+
+    const productId = createProduct();
+    const product = db.prepare('SELECT * FROM products WHERE id = ?').get(productId) as Product;
 
     return NextResponse.json({ product }, { status: 201 });
   } catch (error) {

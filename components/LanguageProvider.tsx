@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode } from 'react';
 import type { Lang } from '@/lib/i18n';
 
 interface LanguageContextType {
@@ -25,18 +25,18 @@ export function localize(lang: Lang, en: string | null | undefined, ko: string |
   return ko || en || '';
 }
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>('en');
+function getInitialLang(): Lang {
+  if (typeof window === 'undefined') return 'en';
+  const saved = localStorage.getItem('lang') as Lang | null;
+  if (saved === 'en' || saved === 'ko') return saved;
+  if (typeof navigator !== 'undefined') {
+    return navigator.language.toLowerCase().startsWith('ko') ? 'ko' : 'en';
+  }
+  return 'en';
+}
 
-  useEffect(() => {
-    const saved = localStorage.getItem('lang') as Lang | null;
-    if (saved === 'en' || saved === 'ko') {
-      setLangState(saved);
-    } else if (typeof navigator !== 'undefined') {
-      const browserLang = navigator.language.toLowerCase();
-      setLangState(browserLang.startsWith('ko') ? 'ko' : 'en');
-    }
-  }, []);
+export function LanguageProvider({ children }: { children: ReactNode }) {
+  const [lang, setLangState] = useState<Lang>(getInitialLang);
 
   function setLang(newLang: Lang) {
     setLangState(newLang);

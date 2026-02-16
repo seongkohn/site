@@ -20,11 +20,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const handleTurnstile = useCallback((token: string) => setTurnstileToken(token), []);
   const pathname = usePathname();
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  async function checkAuth() {
+  const checkAuth = useCallback(async () => {
     try {
       // Check if setup is needed first
       const setupRes = await fetch('/api/auth/setup');
@@ -46,7 +42,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       // not authenticated
     }
     setLoading(false);
-  }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void checkAuth();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [checkAuth]);
 
   async function handleSetup(e: React.FormEvent) {
     e.preventDefault();

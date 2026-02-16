@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, FormEvent } from 'react';
+import { useState, useCallback, FormEvent } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/components/LanguageProvider';
 import { t } from '@/lib/i18n';
@@ -33,24 +33,18 @@ function buildQuoteMessage(params: URLSearchParams): string {
 export default function ContactPage() {
   const { lang } = useLanguage();
   const searchParams = useSearchParams();
+  const initialMessage = buildQuoteMessage(searchParams);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     organization: '',
-    message: '',
+    message: initialMessage,
   });
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [turnstileToken, setTurnstileToken] = useState('');
   const handleTurnstile = useCallback((token: string) => setTurnstileToken(token), []);
-
-  useEffect(() => {
-    const msg = buildQuoteMessage(searchParams);
-    if (msg) {
-      setFormData((prev) => ({ ...prev, message: msg }));
-    }
-  }, [searchParams]);
 
   function validate() {
     const errs: Record<string, string> = {};
@@ -170,7 +164,14 @@ export default function ContactPage() {
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => { setFormData({ ...formData, name: e.target.value }); setErrors((prev) => { const { name, ...rest } = prev; return rest; }); }}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    setErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.name;
+                      return next;
+                    });
+                  }}
                   className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-magenta focus:border-transparent ${errors.name ? 'border-red-400' : 'border-gray-300'}`}
                 />
                 {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
@@ -183,7 +184,14 @@ export default function ContactPage() {
                 <input
                   type="text"
                   value={formData.email}
-                  onChange={(e) => { setFormData({ ...formData, email: e.target.value }); setErrors((prev) => { const { email, ...rest } = prev; return rest; }); }}
+                  onChange={(e) => {
+                    setFormData({ ...formData, email: e.target.value });
+                    setErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.email;
+                      return next;
+                    });
+                  }}
                   className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-magenta focus:border-transparent ${errors.email ? 'border-red-400' : 'border-gray-300'}`}
                 />
               </div>
@@ -195,7 +203,14 @@ export default function ContactPage() {
                 <input
                   type="tel"
                   value={formData.phone}
-                  onChange={(e) => { setFormData({ ...formData, phone: e.target.value }); setErrors((prev) => { const { email, ...rest } = prev; return rest; }); }}
+                  onChange={(e) => {
+                    setFormData({ ...formData, phone: e.target.value });
+                    setErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.email;
+                      return next;
+                    });
+                  }}
                   className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-magenta focus:border-transparent ${errors.email ? 'border-red-400' : 'border-gray-300'}`}
                 />
                 {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
@@ -220,7 +235,14 @@ export default function ContactPage() {
                 <textarea
                   rows={5}
                   value={formData.message}
-                  onChange={(e) => { setFormData({ ...formData, message: e.target.value }); setErrors((prev) => { const { message, ...rest } = prev; return rest; }); }}
+                  onChange={(e) => {
+                    setFormData({ ...formData, message: e.target.value });
+                    setErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.message;
+                      return next;
+                    });
+                  }}
                   className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-magenta focus:border-transparent resize-vertical ${errors.message ? 'border-red-400' : 'border-gray-300'}`}
                 />
                 {errors.message && <p className="text-red-500 text-xs mt-1">{errors.message}</p>}

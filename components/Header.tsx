@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useLanguage } from './LanguageProvider';
@@ -25,9 +26,11 @@ export default function Header() {
           <div className="flex items-center justify-between h-[60px]">
             {/* Logo */}
             <Link href="/" className="flex items-center">
-              <img
+              <Image
                 src="/images/sk-logo.svg"
                 alt="Seongkohn Logo"
+                width={176}
+                height={44}
                 className="h-11 w-auto"
               />
             </Link>

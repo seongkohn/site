@@ -4,6 +4,22 @@ import path from 'path';
 const db = new Database(path.join(process.cwd(), 'data', 'seongkohn.db'));
 db.pragma('journal_mode = WAL');
 
+interface ProductRow {
+  id: number;
+  description_en: string | null;
+  detail_en: string | null;
+  features_en: string | null;
+}
+
+interface ProductSampleRow {
+  name_en: string;
+  d: string;
+}
+
+interface CountRow {
+  c: number;
+}
+
 function cleanText(raw: string): string {
   if (!raw) return '';
   // First unescape literal \n and \t sequences from CSV export
@@ -29,7 +45,7 @@ function cleanText(raw: string): string {
   return s.trim();
 }
 
-const products = db.prepare('SELECT id, description_en, detail_en, features_en FROM products').all() as any[];
+const products = db.prepare('SELECT id, description_en, detail_en, features_en FROM products').all() as ProductRow[];
 const updateDesc = db.prepare('UPDATE products SET description_en = ? WHERE id = ?');
 const updateDetail = db.prepare('UPDATE products SET detail_en = ? WHERE id = ?');
 const updateFeatures = db.prepare('UPDATE products SET features_en = ? WHERE id = ?');
@@ -55,11 +71,11 @@ for (const p of products) {
 db.prepare("UPDATE products SET type_id = 1 WHERE name_en = 'PANNORAMIC 1000' AND type_id IS NULL").run();
 
 // Verify
-const sample = db.prepare('SELECT name_en, substr(detail_en, 1, 300) as d FROM products WHERE id = 11').get() as any;
+const sample = db.prepare('SELECT name_en, substr(detail_en, 1, 300) as d FROM products WHERE id = 11').get() as ProductSampleRow;
 console.log(`Sample: ${sample.name_en}`);
 console.log(sample.d);
 console.log('---');
-const nulls = db.prepare('SELECT count(*) as c FROM products WHERE type_id IS NULL').get() as any;
+const nulls = db.prepare('SELECT count(*) as c FROM products WHERE type_id IS NULL').get() as CountRow;
 console.log(`Null types remaining: ${nulls.c}`);
 console.log(`Cleaned ${cleaned} descriptions`);
 

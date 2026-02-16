@@ -11,6 +11,18 @@ function ensureDb() {
   seedDatabase();
 }
 
+interface CategoryRow {
+  id: number;
+  name_en: string;
+  name_ko: string;
+  slug: string;
+  parent_id: number | null;
+  sort_order: number;
+  created_at: string;
+  parent_name_en: string | null;
+  parent_name_ko: string | null;
+}
+
 export async function GET() {
   ensureDb();
   const db = getDb();
@@ -21,7 +33,7 @@ export async function GET() {
     FROM categories c
     WHERE c.parent_id IS NULL
     ORDER BY c.sort_order, c.name_en
-  `).all() as any[];
+  `).all() as CategoryRow[];
 
   const children = db.prepare(`
     SELECT c.*, p.name_en as parent_name_en, p.name_ko as parent_name_ko
@@ -29,10 +41,10 @@ export async function GET() {
     LEFT JOIN categories p ON c.parent_id = p.id
     WHERE c.parent_id IS NOT NULL
     ORDER BY c.sort_order, c.name_en
-  `).all() as any[];
+  `).all() as CategoryRow[];
 
   // Interleave: parent → child → grandchild
-  const categories: any[] = [];
+  const categories: CategoryRow[] = [];
   for (const parent of parents) {
     categories.push(parent);
     for (const child of children) {

@@ -91,7 +91,7 @@ function getData(searchParams: Record<string, string | undefined>) {
     LEFT JOIN types t ON p.type_id = t.id
     LEFT JOIN brands m ON p.brand_id = m.id
     ${whereClause}
-    ORDER BY p.created_at DESC
+    ORDER BY p.name_en COLLATE NOCASE ASC
     LIMIT ? OFFSET ?
   `).all(...params, limit, offset) as Product[];
 

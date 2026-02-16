@@ -20,8 +20,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
   ).all() as { slug: string; updated_at: string | null }[];
 
   const categories = db.prepare(
-    "SELECT slug FROM categories"
-  ).all() as { slug: string }[];
+    "SELECT id FROM categories"
+  ).all() as { id: number }[];
 
   const staticPages: MetadataRoute.Sitemap = [
     {
@@ -58,7 +58,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   }));
 
   const categoryPages: MetadataRoute.Sitemap = categories.map((c) => ({
-    url: `${SITE_URL}/products?category=${c.slug}`,
+    url: `${SITE_URL}/products?category=${c.id}`,
     changeFrequency: 'weekly' as const,
     priority: 0.6,
   }));

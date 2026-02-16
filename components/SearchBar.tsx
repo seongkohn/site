@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage, localize } from './LanguageProvider';
@@ -26,6 +27,7 @@ export default function SearchBar() {
   const isAdmin = pathname.startsWith('/admin');
 
   useEffect(() => {
+    if (isAdmin) return;
     Promise.all([
       fetch('/api/categories').then((r) => r.json()),
       fetch('/api/types').then((r) => r.json()),
@@ -33,15 +35,14 @@ export default function SearchBar() {
       setCategories(cats);
       setTypes(tps);
     });
-  }, []);
+  }, [isAdmin]);
 
   // Debounced search for suggestions
   useEffect(() => {
+    if (isAdmin) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     if (!searchQuery.trim()) {
-      setSuggestions([]);
-      setShowSuggestions(false);
       return;
     }
 
@@ -53,16 +54,18 @@ export default function SearchBar() {
         setShowSuggestions(true);
       } catch {
         setSuggestions([]);
+        setShowSuggestions(false);
       }
     }, 300); // 300ms debounce
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [searchQuery]);
+  }, [isAdmin, searchQuery]);
 
   // Close suggestions when clicking outside
   useEffect(() => {
+    if (isAdmin) return;
     function handleClickOutside(e: MouseEvent) {
       if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
         setShowSuggestions(false);
@@ -72,7 +75,7 @@ export default function SearchBar() {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [showSuggestions]);
+  }, [isAdmin, showSuggestions]);
 
   if (isAdmin) return null;
 
@@ -196,7 +199,14 @@ export default function SearchBar() {
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setSearchQuery(next);
+                  if (!next.trim()) {
+                    setSuggestions([]);
+                    setShowSuggestions(false);
+                  }
+                }}
                 onFocus={() => searchQuery.trim() && setShowSuggestions(true)}
                 placeholder={t('products.searchAll', lang)}
                 className="w-full h-full px-3 text-sm bg-white outline-none"
@@ -215,7 +225,13 @@ export default function SearchBar() {
                       className="w-full text-left px-3 py-2.5 border-b border-gray-100 hover:bg-brand-pale transition flex items-center gap-3"
                     >
                       {product.image && (
-                        <img src={product.image} alt="" className="w-8 h-8 object-contain rounded" />
+                        <Image
+                          src={product.image}
+                          alt=""
+                          width={32}
+                          height={32}
+                          className="w-8 h-8 object-contain rounded"
+                        />
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-gray-800 truncate">

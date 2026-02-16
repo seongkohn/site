@@ -106,26 +106,6 @@ function parseImageUrls(imagesField: string): string[] {
     });
 }
 
-// ── Helper: strip HTML to plain text ────────────────────────────────────
-function stripHtml(html: string): string {
-  if (!html) return '';
-  return html
-    .replace(/<li[^>]*>/gi, '• ')
-    .replace(/<\/li>/gi, '\n')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n')
-    .replace(/<\/h[1-6]>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
 // ── Helper: extract feature bullets from HTML ───────────────────────────
 function extractFeatures(html: string): string {
   if (!html) return '';
@@ -225,7 +205,7 @@ function pickType(tags: string): number | null {
 
 // ── Brand detection (from product name / description) ───────────────────
 // Most products are Epredia; scanners are 3DHISTECH or Grundium; some are Milestone
-function detectBrand(name: string, categories: string): number {
+function detectBrand(name: string): number {
   const n = name.toLowerCase();
   if (n.includes('pannoramic') || n.includes('halo')) return 2; // 3DHISTECH
   if (n.includes('ocus')) return 4; // Grundium
@@ -289,7 +269,7 @@ for (const row of records) {
 
   const categoryId = pickCategory(categories);
   const typeId = pickType(tags);
-  const brandId = detectBrand(name, categories);
+  const brandId = detectBrand(name);
 
   // Handle images
   const imageFilenames = parseImageUrls(row['Images']?.trim() || '');
