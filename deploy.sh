@@ -13,13 +13,11 @@ npm ci --production=false
 echo "==> Building..."
 npm run build
 
-echo "==> Copying static files to standalone..."
-cp -r public .next/standalone/public
-cp -r .next/static .next/standalone/.next/static
-
-echo "==> Ensuring data directory and standalone symlinks..."
+echo "==> Setting up standalone symlinks and static files..."
 mkdir -p data
-ln -sf "$APP_DIR/data" .next/standalone/data
+cp -r .next/static .next/standalone/.next/static
+ln -sfn "$APP_DIR/public" .next/standalone/public
+ln -sfn "$APP_DIR/data" .next/standalone/data
 ln -sf "$APP_DIR/.env.local" .next/standalone/.env.local
 
 echo "==> Restarting PM2..."
