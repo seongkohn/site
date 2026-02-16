@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/components/LanguageProvider';
 import { t } from '@/lib/i18n';
 import Turnstile from '@/components/Turnstile';
+import GoogleMap from '@/components/GoogleMap';
 
 function buildQuoteMessage(params: URLSearchParams): string {
   const productName = params.get('name');
@@ -54,9 +55,9 @@ export default function ContactPage() {
   function validate() {
     const errs: Record<string, string> = {};
     if (!formData.name.trim()) errs.name = t('contact.requiredName', lang);
-    if (!formData.email.trim()) {
-      errs.email = t('contact.requiredEmail', lang);
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    if (!formData.email.trim() && !formData.phone.trim()) {
+      errs.email = t('contact.requiredEmailOrPhone', lang);
+    } else if (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errs.email = t('contact.invalidEmail', lang);
     }
     if (!formData.message.trim()) errs.message = t('contact.requiredMessage', lang);
@@ -149,16 +150,7 @@ export default function ContactPage() {
 
             {/* Map */}
             <div className="mt-6 rounded-lg overflow-hidden border border-gray-200">
-              <iframe
-                src="https://maps.google.com/maps?q=Seongkohn+Traders+Corp&t=&z=13&ie=UTF8&iwloc=&output=embed"
-                width="100%"
-                height="250"
-                style={{ border: 0 }}
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                title="Seongkohn Traders Corp."
-              />
+              <GoogleMap />
             </div>
           </div>
 
@@ -194,7 +186,6 @@ export default function ContactPage() {
                   onChange={(e) => { setFormData({ ...formData, email: e.target.value }); setErrors((prev) => { const { email, ...rest } = prev; return rest; }); }}
                   className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-magenta focus:border-transparent ${errors.email ? 'border-red-400' : 'border-gray-300'}`}
                 />
-                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
               </div>
 
               <div>
@@ -204,9 +195,10 @@ export default function ContactPage() {
                 <input
                   type="tel"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-magenta focus:border-transparent"
+                  onChange={(e) => { setFormData({ ...formData, phone: e.target.value }); setErrors((prev) => { const { email, ...rest } = prev; return rest; }); }}
+                  className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-magenta focus:border-transparent ${errors.email ? 'border-red-400' : 'border-gray-300'}`}
                 />
+                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
               </div>
 
               <div>

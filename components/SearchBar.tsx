@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage, localize } from './LanguageProvider';
 import { t } from '@/lib/i18n';
-import type { Category, Type } from '@/lib/types';
+import type { Category, Type, Product } from '@/lib/types';
 
 export default function SearchBar() {
   const { lang } = useLanguage();
@@ -17,6 +17,10 @@ export default function SearchBar() {
   const [types, setTypes] = useState<Type[]>([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [suggestions, setSuggestions] = useState<Product[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const isHome = pathname === '/';
   const isAdmin = pathname.startsWith('/admin');
@@ -31,6 +35,45 @@ export default function SearchBar() {
     });
   }, []);
 
+  // Debounced search for suggestions
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (!searchQuery.trim()) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
+        const data = await res.json();
+        setSuggestions(data.results.slice(0, 6)); // Show max 6 suggestions
+        setShowSuggestions(true);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 300); // 300ms debounce
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [searchQuery]);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+    if (showSuggestions) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showSuggestions]);
+
   if (isAdmin) return null;
 
   function handleSearch(e: React.FormEvent) {
@@ -39,7 +82,13 @@ export default function SearchBar() {
     if (selectedCategory) params.set('category', selectedCategory);
     if (searchQuery.trim()) params.set('search', searchQuery.trim());
     const qs = params.toString();
+    setShowSuggestions(false);
     router.push(qs ? `/products?${qs}` : '/products');
+  }
+
+  function handleSuggestionClick(product: Product) {
+    setShowSuggestions(false);
+    router.push(`/products/${product.slug}`);
   }
 
   // Group categories: parents first, then children indented
@@ -127,7 +176,7 @@ export default function SearchBar() {
           </div>
 
           {/* Category dropdown + Search — joined together, vertically centered */}
-          <form onSubmit={handleSearch} className="flex flex-1 h-[36px] mb-2 ml-2">
+          <form onSubmit={handleSearch} className="flex flex-1 h-[36px] mb-2 ml-2 relative">
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
@@ -143,16 +192,65 @@ export default function SearchBar() {
                 </option>
               ))}
             </select>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('products.searchAll', lang)}
-              className="flex-1 h-full px-3 text-sm bg-white outline-none"
-            />
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => searchQuery.trim() && setShowSuggestions(true)}
+                placeholder={t('products.searchAll', lang)}
+                className="w-full h-full px-3 text-sm bg-white outline-none"
+              />
+              {/* Suggestions dropdown */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div
+                  ref={suggestionsRef}
+                  className="absolute top-full left-0 right-0 bg-white border border-gray-200 border-t-0 shadow-lg z-50 max-h-80 overflow-y-auto"
+                >
+                  {suggestions.map((product) => (
+                    <button
+                      key={product.id}
+                      type="button"
+                      onClick={() => handleSuggestionClick(product)}
+                      className="w-full text-left px-3 py-2.5 border-b border-gray-100 hover:bg-brand-pale transition flex items-center gap-3"
+                    >
+                      {product.image && (
+                        <img src={product.image} alt="" className="w-8 h-8 object-contain rounded" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-800 truncate">
+                          {lang === 'en' ? product.name_en : product.name_ko}
+                        </div>
+                        {product.brand_name_en && (
+                          <div className="text-xs text-gray-500 truncate">
+                            {lang === 'en' ? product.brand_name_en : product.brand_name_ko || product.brand_name_en}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-400 whitespace-nowrap">{product.sku}</div>
+                    </button>
+                  ))}
+                  {suggestions.length > 0 && (
+                    <button
+                      type="submit"
+                      className="w-full text-center px-3 py-2 text-xs text-brand-magenta font-medium bg-gray-50 hover:bg-gray-100 transition"
+                    >
+                      {lang === 'en' ? 'View all results' : '모든 결과 보기'}
+                    </button>
+                  )}
+                </div>
+              )}
+              {showSuggestions && searchQuery.trim() && suggestions.length === 0 && (
+                <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 border-t-0 shadow-lg z-50 px-3 py-3">
+                  <div className="text-sm text-gray-500">
+                    {lang === 'en' ? 'No products found' : '상품을 찾을 수 없습니다'}
+                  </div>
+                </div>
+              )}
+            </div>
             <button
               type="submit"
-              className="h-full px-3 bg-white flex items-center justify-center text-gray-500 hover:text-brand-magenta transition"
+              className="h-full px-3 bg-white flex items-center justify-center text-gray-500 hover:text-brand-magenta transition border-l border-gray-200"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <circle cx="11" cy="11" r="8" />

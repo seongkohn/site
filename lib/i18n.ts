@@ -6,7 +6,7 @@ export const translations = {
     products: { en: 'Products', ko: '제품' },
     about: { en: 'About Us', ko: '회사소개' },
     partners: { en: 'Partners', ko: '파트너' },
-    contact: { en: 'Contact Us', ko: '문의' },
+    contact: { en: 'Contact Us', ko: '연락처' },
   },
   home: {
     heroTitle: { en: 'Precision Instruments for Pathology', ko: '병리학을 위한 정밀 기기' },
@@ -107,6 +107,7 @@ export const translations = {
     error: { en: 'Failed to send message. Please try again.', ko: '메시지 전송에 실패했습니다. 다시 시도해 주세요.' },
     requiredName: { en: 'Please enter your name.', ko: '성함을 입력해 주세요.' },
     requiredEmail: { en: 'Please enter your email.', ko: '이메일을 입력해 주세요.' },
+    requiredEmailOrPhone: { en: 'Please enter at least an email or phone number.', ko: '이메일 또는 전화번호 중 하나를 입력해 주세요.' },
     invalidEmail: { en: 'Please enter a valid email address.', ko: '올바른 이메일 주소를 입력해 주세요.' },
     requiredMessage: { en: 'Please enter a message.', ko: '메시지를 입력해 주세요.' },
     address: { en: 'Address', ko: '주소' },

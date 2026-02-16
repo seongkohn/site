@@ -20,25 +20,52 @@ const notoSansKR = Noto_Sans_KR({
   variable: "--font-noto-sans-kr",
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.seongkohn.com";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Seongkohn Traders Corp. | 성곤무역(주)",
-    template: "%s | Seongkohn Traders",
+    default: "성곤무역(주) | Seongkohn Traders Corp.",
+    template: "%s | 성곤무역",
   },
   description:
-    "Korea's trusted distributor of pathology laboratory instruments since 1988. Epredia, 3DHISTECH, Hologic, Grundium.",
+    "Korea's trusted distributor of pathology laboratory instruments since 1988. Epredia, 3DHISTECH, Hologic, Grundium, Milestone, Biocartis.",
   keywords: [
     "pathology",
     "laboratory instruments",
+    "histology",
+    "cytology",
+    "digital pathology",
+    "tissue processor",
+    "slide scanner",
+    "molecular diagnostics",
     "병리",
+    "조직병리",
+    "세포병리",
     "실험 장비",
+    "병리 장비",
+    "디지털 병리",
     "성곤무역",
     "Seongkohn",
     "Epredia",
     "3DHISTECH",
     "Hologic",
     "Grundium",
+    "Milestone",
+    "Biocartis",
   ],
+  openGraph: {
+    type: "website",
+    locale: "ko_KR",
+    alternateLocale: "en_US",
+    siteName: "성곤무역(주) | Seongkohn Traders Corp.",
+    title: "성곤무역(주) | Seongkohn Traders Corp.",
+    description:
+      "Korea's trusted distributor of pathology laboratory instruments since 1988.",
+  },
+  alternates: {
+    canonical: SITE_URL,
+  },
 };
 
 export default function RootLayout({
@@ -49,6 +76,26 @@ export default function RootLayout({
   return (
     <html lang="ko" suppressHydrationWarning className={`${inter.variable} ${notoSansKR.variable}`}>
       <body className="antialiased">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "성곤무역(주)",
+              alternateName: "Seongkohn Traders Corp.",
+              url: SITE_URL,
+              description:
+                "Korea's trusted distributor of pathology laboratory instruments since 1988.",
+              foundingDate: "1988",
+              address: {
+                "@type": "PostalAddress",
+                addressCountry: "KR",
+              },
+              sameAs: [],
+            }),
+          }}
+        />
         <LanguageProvider>
           <div className="min-h-screen flex flex-col">
             <Header />

@@ -87,6 +87,9 @@ export const adminTranslations = {
   productForm: {
     addProduct: { en: 'Add Product', ko: '제품 추가' },
     editProduct: { en: 'Edit Product', ko: '제품 수정' },
+    mode: { en: 'Product Mode', ko: '제품 유형' },
+    modeSimple: { en: 'Simple (single SKU)', ko: '단일형 (SKU 1개)' },
+    modeVariable: { en: 'Variable (variants only)', ko: '옵션형 (변형만 사용)' },
     nameEn: { en: 'Name (English)', ko: '이름 (영문)' },
     nameKo: { en: 'Name (Korean)', ko: '이름 (한글)' },
     slug: { en: 'Slug', ko: '슬러그' },

@@ -30,6 +30,7 @@ interface SpecRow {
 }
 
 interface FormData {
+  mode: 'simple' | 'variable';
   name_en: string;
   name_ko: string;
   slug: string;
@@ -53,6 +54,7 @@ interface FormData {
 }
 
 const emptyForm: FormData = {
+  mode: 'simple',
   name_en: '',
   name_ko: '',
   slug: '',
@@ -93,6 +95,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
   const [errorText, setErrorText] = useState('');
   const [thumbnailIndex, setThumbnailIndex] = useState(0);
   const [relatedSearch, setRelatedSearch] = useState('');
+  const [expandedImageIndex, setExpandedImageIndex] = useState<number | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -133,6 +136,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
           setThumbnailIndex(thumbIdx >= 0 ? thumbIdx : 0);
 
           setForm({
+            mode: p.mode === 'variable' || loadedVariants.length > 0 ? 'variable' : 'simple',
             name_en: p.name_en || '',
             name_ko: p.name_ko || '',
             slug: p.slug || '',
@@ -178,24 +182,42 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
   }
 
   async function handleGalleryUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
     setUploadingGallery(true);
     try {
-      const formData = new window.FormData();
-      formData.append('file', file);
-      const res = await fetch('/api/upload', { method: 'POST', body: formData });
-      if (!res.ok) {
-        const err = await res.json();
-        alert(err.error || ta('common.uploadFailed', lang));
-        return;
+      const uploadedImages: GalleryImageRow[] = [];
+
+      // Upload each file sequentially
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new window.FormData();
+        formData.append('file', file);
+
+        const res = await fetch('/api/upload', { method: 'POST', body: formData });
+        if (!res.ok) {
+          const err = await res.json();
+          alert(`${file.name}: ${err.error || ta('common.uploadFailed', lang)}`);
+          continue;
+        }
+
+        const data = await res.json();
+        uploadedImages.push({
+          url: data.url,
+          type: 'image',
+          alt_en: '',
+          alt_ko: '',
+          variant_index: null
+        });
       }
-      const data = await res.json();
-      setForm((prev) => ({
-        ...prev,
-        images: [...prev.images, { url: data.url, type: 'image', alt_en: '', alt_ko: '', variant_index: null }],
-      }));
+
+      if (uploadedImages.length > 0) {
+        setForm((prev) => ({
+          ...prev,
+          images: [...prev.images, ...uploadedImages],
+        }));
+      }
     } catch {
       alert(ta('common.uploadFailed', lang));
     } finally {
@@ -264,10 +286,23 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
 
     try {
       // Derive thumbnail from gallery selection
-      const imageFiles = form.images.filter((img) => img.url && img.type === 'image');
-      const thumbnailUrl = imageFiles[thumbnailIndex]?.url || imageFiles[0]?.url || form.image || null;
+      // thumbnailIndex refers to form.images (all media), so look up directly
+      const selectedThumb = form.images[thumbnailIndex];
+      const firstImage = form.images.find((img) => img.url && img.type === 'image');
+      const thumbnailUrl = (selectedThumb?.type === 'image' && selectedThumb?.url) ? selectedThumb.url : firstImage?.url || form.image || null;
+
+      const filteredVariants = form.variants.filter((v) => v.name_en && v.sku);
+      if (form.mode === 'simple' && !form.sku.trim()) {
+        setErrorText(lang === 'en' ? 'SKU is required for simple products.' : '단일형 제품에는 SKU가 필요합니다.');
+        return;
+      }
+      if (form.mode === 'variable' && filteredVariants.length === 0) {
+        setErrorText(lang === 'en' ? 'Add at least one variant for variable products.' : '옵션형 제품에는 최소 1개 이상의 변형이 필요합니다.');
+        return;
+      }
 
       const payload = {
+        mode: form.mode,
         name_en: form.name_en,
         name_ko: form.name_ko,
         sku: form.sku,
@@ -285,7 +320,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
         is_published: form.is_published ? 1 : 0,
         is_featured: form.is_featured ? 1 : 0,
         related_ids: form.related_ids,
-        variants: form.variants.filter((v) => v.name_en && v.sku),
+        variants: form.mode === 'variable' ? filteredVariants : [],
         images: form.images.filter((img) => img.url),
         specs: form.specs.filter((s) => s.key_en && s.value_en),
       };
@@ -311,7 +346,13 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
         return;
       }
 
-      router.push('/admin/products');
+      // For new products, get the ID from the response; for existing, use the current id
+      let savedId = id;
+      if (isNew) {
+        const data = await res.json();
+        savedId = String(data.product?.id || '');
+      }
+      router.push(`/admin/products?saved=${savedId}`);
     } catch {
       setErrorKey('productForm.saveFailed');
       setErrorText('');
@@ -378,549 +419,657 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-gray-200 p-6 space-y-5">
-        {/* Names */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.nameEn', lang)}</label>
-            <input
-              type="text"
-              required
-              value={form.name_en}
-              onChange={(e) => {
-                const newName = e.target.value;
-                setForm((prev) => ({
-                  ...prev,
-                  name_en: newName,
-                  // Auto-update slug only if it was previously auto-generated or empty
-                  slug: !prev.slug || prev.slug === slugify(prev.name_en) ? slugify(newName) : prev.slug,
-                }));
-              }}
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-            />
+      <form onSubmit={handleSubmit} className="space-y-6">
+      {/* ===== TOP: 2-column layout ===== */}
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        {/* ===== RIGHT SIDEBAR (appears first on mobile) ===== */}
+        <div className="w-full lg:w-1/3 lg:order-2 flex flex-col gap-4 lg:sticky lg:top-4 lg:self-start">
+          {/* Publish Card */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{ta('productForm.published', lang)}</h3>
+            <div className="flex flex-col gap-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.is_published}
+                  onChange={(e) => setForm({ ...form, is_published: e.target.checked })}
+                  className="rounded border-gray-300"
+                />
+                {ta('productForm.published', lang)}
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.is_featured}
+                  onChange={(e) => setForm({ ...form, is_featured: e.target.checked })}
+                  className="rounded border-gray-300"
+                />
+                {ta('productForm.featured', lang)}
+              </label>
+            </div>
+            <div className="flex items-center gap-3 pt-1">
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex-1 bg-brand-magenta text-white text-sm px-4 py-2 rounded hover:opacity-90 transition disabled:opacity-50"
+              >
+                {saving ? ta('common.saving', lang) : isNew ? ta('productForm.createProduct', lang) : ta('productForm.saveChanges', lang)}
+              </button>
+              <Link href="/admin/products" className="text-sm text-gray-500 hover:text-brand-navy">
+                {ta('common.cancel', lang)}
+              </Link>
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.nameKo', lang)}</label>
-            <input
-              type="text"
-              value={form.name_ko}
-              onChange={(e) => setForm({ ...form, name_ko: e.target.value })}
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-            />
-          </div>
-        </div>
 
-        {/* Slug */}
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.slug', lang)}</label>
-          <input
-            type="text"
-            value={form.slug}
-            onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-') })}
-            placeholder={slugify(form.name_en) || 'auto-generated-from-name'}
-            className="w-full max-w-md border border-gray-200 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-purple"
-          />
-          <p className="text-xs text-gray-400 mt-1">URL path: /products/{form.slug || slugify(form.name_en) || '...'}</p>
-        </div>
-
-        {/* Selects */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.brand', lang)}</label>
-            <select
-              value={form.brand_id}
-              onChange={(e) => setForm({ ...form, brand_id: e.target.value })}
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-            >
-              <option value="">{ta('common.none', lang)}</option>
-              {brands.map((m) => (
-                <option key={m.id} value={m.id}>{m.name_en}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.category', lang)}</label>
-            <select
-              value={form.category_id}
-              onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-            >
-              <option value="">{ta('common.none', lang)}</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.parent_id ? '\u00A0\u00A0\u00A0' : ''}{c.name_en}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.type', lang)}</label>
-            <select
-              value={form.type_id}
-              onChange={(e) => setForm({ ...form, type_id: e.target.value })}
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-            >
-              <option value="">{ta('common.none', lang)}</option>
-              {types.map((t) => (
-                <option key={t.id} value={t.id}>{t.name_en}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* SKU */}
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.sku', lang)}</label>
-          <input
-            type="text"
-            required
-            value={form.sku}
-            onChange={(e) => setForm({ ...form, sku: e.target.value })}
-            className="w-full max-w-xs border border-gray-200 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-purple"
-          />
-        </div>
-
-        {/* Variants */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="block text-xs font-medium text-gray-500">{ta('productForm.variants', lang)}</label>
-            <button
-              type="button"
-              onClick={addVariant}
-              className="text-xs text-brand-purple hover:text-brand-magenta font-medium"
-            >
-              {ta('productForm.addVariant', lang)}
-            </button>
-          </div>
-          {form.variants.length === 0 ? (
-            <p className="text-xs text-gray-400">{ta('productForm.noVariants', lang)}</p>
-          ) : (
-            <div className="border border-gray-200 rounded overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">{ta('productForm.nameEn', lang)}</th>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">{ta('productForm.nameKo', lang)}</th>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">{ta('productForm.sku', lang)}</th>
-                    <th className="w-8"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {form.variants.map((v, i) => (
-                    <tr key={i} className="border-b border-gray-100">
-                      <td className="px-3 py-2">
-                        <input
-                          type="text"
-                          value={v.name_en}
-                          onChange={(e) => updateVariant(i, 'name_en', e.target.value)}
-                          placeholder="e.g. 20x Objective"
-                          className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+          {/* Images Card */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{ta('productForm.imagesThumbnail', lang)}</h3>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={addVideoToGallery}
+                  className="text-xs text-brand-purple hover:text-brand-magenta font-medium"
+                >
+                  {ta('productForm.addVideoUrl', lang)}
+                </button>
+                <label className="text-xs text-brand-purple hover:text-brand-magenta font-medium cursor-pointer">
+                  {ta('productForm.uploadImage', lang)}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/svg+xml,image/gif,image/tiff,image/bmp"
+                    onChange={handleGalleryUpload}
+                    multiple
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            </div>
+            {uploadingGallery && <p className="text-xs text-gray-400">{ta('common.uploading', lang)}</p>}
+            {form.images.length === 0 ? (
+              <p className="text-xs text-gray-400">{ta('productForm.noImages', lang)}</p>
+            ) : (
+              <>
+                {/* Compact thumbnail grid */}
+                <div className="grid grid-cols-3 gap-2">
+                  {form.images.map((img, i) => (
+                    <div key={i} className="relative group">
+                      {img.type === 'image' && img.url ? (
+                        <img
+                          src={img.url}
+                          alt=""
+                          className={`w-full aspect-square object-contain border-2 rounded cursor-pointer ${thumbnailIndex === i ? 'border-brand-magenta' : 'border-gray-100'}`}
+                          onClick={() => setExpandedImageIndex(expandedImageIndex === i ? null : i)}
                         />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="text"
-                          value={v.name_ko}
-                          onChange={(e) => updateVariant(i, 'name_ko', e.target.value)}
-                          placeholder="e.g. 20x ..."
-                          className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="text"
-                          value={v.sku}
-                          onChange={(e) => updateVariant(i, 'sku', e.target.value)}
-                          placeholder="e.g. P250-20"
-                          className="w-full border border-gray-200 rounded px-2 py-1 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
+                      ) : (
+                        <div
+                          className="w-full aspect-square bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs cursor-pointer border-2 border-gray-100"
+                          onClick={() => setExpandedImageIndex(expandedImageIndex === i ? null : i)}
+                        >
+                          {img.type === 'video' ? ta('productForm.video', lang) : 'N/A'}
+                        </div>
+                      )}
+                      {/* Overlay controls */}
+                      <div className="absolute top-0.5 right-0.5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {img.type === 'image' && img.url && (
+                          <button
+                            type="button"
+                            onClick={() => setThumbnailIndex(i)}
+                            className={`p-0.5 rounded text-xs ${thumbnailIndex === i ? 'bg-brand-magenta text-white' : 'bg-white/80 text-gray-600 hover:bg-white'}`}
+                            title={ta('productForm.thumb', lang)}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                          </button>
+                        )}
                         <button
                           type="button"
-                          onClick={() => removeVariant(i)}
-                          className="text-red-400 hover:text-red-600"
+                          onClick={() => removeGalleryImage(i)}
+                          className="p-0.5 rounded bg-white/80 text-red-400 hover:text-red-600 hover:bg-white"
                           title={ta('common.remove', lang)}
                         >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
+                      {/* Reorder buttons */}
+                      <div className="absolute bottom-0.5 left-0.5 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button type="button" onClick={() => moveGalleryImage(i, -1)} disabled={i === 0} className="p-0.5 rounded bg-white/80 text-gray-500 hover:bg-white disabled:opacity-30" title="Move left">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                        </button>
+                        <button type="button" onClick={() => moveGalleryImage(i, 1)} disabled={i === form.images.length - 1} className="p-0.5 rounded bg-white/80 text-gray-500 hover:bg-white disabled:opacity-30" title="Move right">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+                        </button>
+                      </div>
+                      {/* Thumbnail badge */}
+                      {thumbnailIndex === i && (
+                        <span className="absolute top-0.5 left-0.5 bg-brand-magenta text-white text-[10px] px-1 rounded">
+                          {ta('productForm.thumb', lang)}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Expanded image detail (inline) */}
+                {expandedImageIndex !== null && expandedImageIndex < form.images.length && (() => {
+                  const img = form.images[expandedImageIndex];
+                  const i = expandedImageIndex;
+                  return (
+                    <div className="border border-gray-200 rounded p-3 space-y-2 bg-gray-50">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-500">
+                          {img.type === 'image' ? ta('productForm.image', lang) : ta('productForm.video', lang)} #{i + 1}
+                        </span>
+                        <button type="button" onClick={() => setExpandedImageIndex(null)} className="text-gray-400 hover:text-gray-600">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                           </svg>
                         </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Descriptions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.descriptionEn', lang)}</label>
-            <textarea
-              rows={4}
-              value={form.description_en}
-              onChange={(e) => setForm({ ...form, description_en: e.target.value })}
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.descriptionKo', lang)}</label>
-            <textarea
-              rows={4}
-              value={form.description_ko}
-              onChange={(e) => setForm({ ...form, description_ko: e.target.value })}
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-            />
-          </div>
-        </div>
-
-        {/* Features */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.featuresEn', lang)}</label>
-            <textarea
-              rows={4}
-              value={form.features_en}
-              onChange={(e) => setForm({ ...form, features_en: e.target.value })}
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.featuresKo', lang)}</label>
-            <textarea
-              rows={4}
-              value={form.features_ko}
-              onChange={(e) => setForm({ ...form, features_ko: e.target.value })}
-              className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-            />
-          </div>
-        </div>
-
-        {/* Gallery Images */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="block text-xs font-medium text-gray-500">{ta('productForm.imagesThumbnail', lang)}</label>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={addVideoToGallery}
-                className="text-xs text-brand-purple hover:text-brand-magenta font-medium"
-              >
-                {ta('productForm.addVideoUrl', lang)}
-              </button>
-              <label className="text-xs text-brand-purple hover:text-brand-magenta font-medium cursor-pointer">
-                {ta('productForm.uploadImage', lang)}
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/svg+xml,image/gif,image/tiff,image/bmp"
-                  onChange={handleGalleryUpload}
-                  className="hidden"
-                />
-              </label>
-            </div>
-          </div>
-          {uploadingGallery && <p className="text-xs text-gray-400 mb-2">{ta('common.uploading', lang)}</p>}
-          {form.images.length === 0 ? (
-            <p className="text-xs text-gray-400">{ta('productForm.noImages', lang)}</p>
-          ) : (
-            <div className="space-y-2">
-              {form.images.map((img, i) => (
-                <div key={i} className="border border-gray-200 rounded p-3 flex items-start gap-3">
-                  {/* Thumbnail selector + Preview */}
-                  <div className="shrink-0 w-16 flex flex-col items-center gap-1">
-                    {img.type === 'image' && img.url ? (
-                      <>
-                        <img src={img.url} alt="" className={`w-16 h-16 object-contain border-2 rounded ${thumbnailIndex === i ? 'border-brand-magenta' : 'border-gray-100'}`} />
-                        <button
-                          type="button"
-                          onClick={() => setThumbnailIndex(i)}
-                          className={`text-xs px-1.5 py-0.5 rounded ${thumbnailIndex === i ? 'bg-brand-magenta text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-                          title={ta('productForm.thumb', lang)}
-                        >
-                          {thumbnailIndex === i ? ta('productForm.thumb', lang) : ta('productForm.set', lang)}
-                        </button>
-                      </>
-                    ) : (
-                      <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs">
-                        {img.type === 'video' ? ta('productForm.video', lang) : 'N/A'}
                       </div>
-                    )}
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    {img.type === 'video' && (
-                      <input
-                        type="text"
-                        value={img.url}
-                        onChange={(e) => updateGalleryImage(i, 'url', e.target.value)}
-                        placeholder={ta('productForm.videoEmbedUrl', lang)}
-                        className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                      />
-                    )}
-                    <div className="grid grid-cols-2 gap-2">
+                      {img.type === 'video' && (
+                        <input
+                          type="text"
+                          value={img.url}
+                          onChange={(e) => updateGalleryImage(i, 'url', e.target.value)}
+                          placeholder={ta('productForm.videoEmbedUrl', lang)}
+                          className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                        />
+                      )}
                       <input
                         type="text"
                         value={img.alt_en}
                         onChange={(e) => updateGalleryImage(i, 'alt_en', e.target.value)}
                         placeholder={ta('productForm.altTextEn', lang)}
-                        className="border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                        className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
                       />
                       <input
                         type="text"
                         value={img.alt_ko}
                         onChange={(e) => updateGalleryImage(i, 'alt_ko', e.target.value)}
                         placeholder={ta('productForm.altTextKo', lang)}
-                        className="border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                        className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
                       />
+                      {form.mode === 'variable' ? (
+                        <select
+                          value={img.variant_index ?? ''}
+                          onChange={(e) => updateGalleryImage(i, 'variant_index', e.target.value === '' ? null : parseInt(e.target.value))}
+                          className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                        >
+                          <option value="">{ta('productForm.noLinkedVariant', lang)}</option>
+                          {form.variants.map((v, vi) => (
+                            <option key={vi} value={vi}>{v.name_en || `Variant ${vi + 1}`} ({v.sku})</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="text-xs text-gray-400">{lang === 'en' ? 'Applies to product' : '제품 공통 이미지'}</span>
+                      )}
                     </div>
-                    <div className="flex items-center gap-3">
-                      <select
-                        value={img.variant_index ?? ''}
-                        onChange={(e) => updateGalleryImage(i, 'variant_index', e.target.value === '' ? null : parseInt(e.target.value))}
-                        className="border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                      >
-                        <option value="">{ta('productForm.noLinkedVariant', lang)}</option>
-                        {form.variants.map((v, vi) => (
-                          <option key={vi} value={vi}>{v.name_en || `Variant ${vi + 1}`} ({v.sku})</option>
-                        ))}
-                      </select>
-                      <span className="text-xs text-gray-400">
-                        {img.type === 'image' ? ta('productForm.image', lang) : ta('productForm.video', lang)}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1 shrink-0">
-                    <button type="button" onClick={() => moveGalleryImage(i, -1)} disabled={i === 0} className="text-gray-400 hover:text-gray-600 disabled:opacity-30" title="Move up">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" /></svg>
-                    </button>
-                    <button type="button" onClick={() => moveGalleryImage(i, 1)} disabled={i === form.images.length - 1} className="text-gray-400 hover:text-gray-600 disabled:opacity-30" title="Move down">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-                    </button>
-                    <button type="button" onClick={() => removeGalleryImage(i)} className="text-red-400 hover:text-red-600" title={ta('common.remove', lang)}>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Specifications */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="block text-xs font-medium text-gray-500">{ta('productForm.specifications', lang)}</label>
-            <button
-              type="button"
-              onClick={addSpec}
-              className="text-xs text-brand-purple hover:text-brand-magenta font-medium"
-            >
-              {ta('productForm.addSpec', lang)}
-            </button>
+                  );
+                })()}
+              </>
+            )}
           </div>
-          {form.specs.length === 0 ? (
-            <p className="text-xs text-gray-400">{ta('productForm.noSpecs', lang)}</p>
-          ) : (
-            <div className="border border-gray-200 rounded overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">{ta('productForm.keyEn', lang)}</th>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">{ta('productForm.keyKo', lang)}</th>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">{ta('productForm.valueEn', lang)}</th>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">{ta('productForm.valueKo', lang)}</th>
-                    <th className="w-8"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {form.specs.map((s, i) => (
-                    <tr key={i} className="border-b border-gray-100">
-                      <td className="px-3 py-2">
-                        <input
-                          type="text"
-                          value={s.key_en}
-                          onChange={(e) => updateSpec(i, 'key_en', e.target.value)}
-                          placeholder="e.g. Weight"
-                          className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="text"
-                          value={s.key_ko}
-                          onChange={(e) => updateSpec(i, 'key_ko', e.target.value)}
-                          placeholder="e.g. ..."
-                          className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="text"
-                          value={s.value_en}
-                          onChange={(e) => updateSpec(i, 'value_en', e.target.value)}
-                          placeholder="e.g. 5 kg"
-                          className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input
-                          type="text"
-                          value={s.value_ko}
-                          onChange={(e) => updateSpec(i, 'value_ko', e.target.value)}
-                          placeholder="e.g. 5 kg"
-                          className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
+
+          {/* Related Products Card */}
+          {otherProducts.length > 0 && (
+            <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{ta('productForm.relatedProducts', lang)}</h3>
+              {form.related_ids.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {form.related_ids.map((rid) => {
+                    const rp = otherProducts.find((p) => p.id === rid);
+                    if (!rp) return null;
+                    return (
+                      <span
+                        key={rid}
+                        className="inline-flex items-center gap-1 bg-brand-pale text-brand-navy text-xs px-2 py-0.5 rounded-full"
+                      >
+                        {rp.name_en}
                         <button
                           type="button"
-                          onClick={() => removeSpec(i)}
-                          className="text-red-400 hover:text-red-600"
-                          title={ta('common.remove', lang)}
+                          onClick={() => toggleRelated(rid)}
+                          className="text-gray-400 hover:text-red-500 ml-0.5"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                           </svg>
                         </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={relatedSearch}
+                  onChange={(e) => setRelatedSearch(e.target.value)}
+                  placeholder={ta('productForm.searchRelated', lang)}
+                  className="w-full border border-gray-200 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                />
+                {relatedSearch && (
+                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-48 overflow-y-auto">
+                    {otherProducts
+                      .filter((p) => {
+                        if (form.related_ids.includes(p.id)) return false;
+                        const q = relatedSearch.toLowerCase();
+                        return p.name_en.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
+                      })
+                      .slice(0, 20)
+                      .map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => { toggleRelated(p.id); setRelatedSearch(''); }}
+                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-brand-pale flex items-center justify-between"
+                        >
+                          <span className="truncate">{p.name_en}</span>
+                          <span className="text-xs text-gray-400 font-mono ml-2 shrink-0">{p.sku}</span>
+                        </button>
+                      ))}
+                    {otherProducts.filter((p) => {
+                      if (form.related_ids.includes(p.id)) return false;
+                      const q = relatedSearch.toLowerCase();
+                      return p.name_en.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
+                    }).length === 0 && (
+                      <div className="px-3 py-2 text-xs text-gray-400">{ta('productForm.noMatchingProducts', lang)}</div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
 
-        {/* Detailed Description */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.detailEn', lang)}</label>
-            <RichTextEditor
-              value={form.detail_en}
-              onChange={(value) => setForm((prev) => ({ ...prev, detail_en: value }))}
-              placeholder="Long-form product description..."
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.detailKo', lang)}</label>
-            <RichTextEditor
-              value={form.detail_ko}
-              onChange={(value) => setForm((prev) => ({ ...prev, detail_ko: value }))}
-              placeholder="..."
-            />
-          </div>
-        </div>
-
-        {/* Toggles */}
-        <div className="flex items-center gap-6">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={form.is_published}
-              onChange={(e) => setForm({ ...form, is_published: e.target.checked })}
-              className="rounded border-gray-300"
-            />
-            {ta('productForm.published', lang)}
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={form.is_featured}
-              onChange={(e) => setForm({ ...form, is_featured: e.target.checked })}
-              className="rounded border-gray-300"
-            />
-            {ta('productForm.featured', lang)}
-          </label>
-        </div>
-
-        {/* Related Products */}
-        {otherProducts.length > 0 && (
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-2">{ta('productForm.relatedProducts', lang)}</label>
-            {/* Selected related products as chips */}
-            {form.related_ids.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-2">
-                {form.related_ids.map((rid) => {
-                  const rp = otherProducts.find((p) => p.id === rid);
-                  if (!rp) return null;
-                  return (
-                    <span
-                      key={rid}
-                      className="inline-flex items-center gap-1 bg-brand-pale text-brand-navy text-xs px-2.5 py-1 rounded-full"
-                    >
-                      {rp.name_en}
-                      <button
-                        type="button"
-                        onClick={() => toggleRelated(rid)}
-                        className="text-gray-400 hover:text-red-500 ml-0.5"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                        </svg>
-                      </button>
-                    </span>
-                  );
-                })}
+        {/* ===== LEFT COLUMN (main content) ===== */}
+        <div className="w-full lg:w-2/3 lg:order-1 space-y-6">
+          {/* Basic Info Card — Names + Slug */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.nameEn', lang)}</label>
+                <input
+                  type="text"
+                  required
+                  value={form.name_en}
+                  onChange={(e) => {
+                    const newName = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      name_en: newName,
+                      slug: !prev.slug || prev.slug === slugify(prev.name_en) ? slugify(newName) : prev.slug,
+                    }));
+                  }}
+                  className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                />
               </div>
-            )}
-            {/* Search input */}
-            <div className="relative">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.nameKo', lang)}</label>
+                <input
+                  type="text"
+                  value={form.name_ko}
+                  onChange={(e) => setForm({ ...form, name_ko: e.target.value })}
+                  className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.slug', lang)}</label>
               <input
                 type="text"
-                value={relatedSearch}
-                onChange={(e) => setRelatedSearch(e.target.value)}
-                placeholder={ta('productForm.searchRelated', lang)}
-                className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                value={form.slug}
+                onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-') })}
+                placeholder={slugify(form.name_en) || 'auto-generated-from-name'}
+                className="w-full border border-gray-200 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-purple"
               />
-              {relatedSearch && (
-                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-48 overflow-y-auto">
-                  {otherProducts
-                    .filter((p) => {
-                      if (form.related_ids.includes(p.id)) return false;
-                      const q = relatedSearch.toLowerCase();
-                      return p.name_en.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
-                    })
-                    .slice(0, 20)
-                    .map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => { toggleRelated(p.id); setRelatedSearch(''); }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-brand-pale flex items-center justify-between"
-                      >
-                        <span>{p.name_en}</span>
-                        <span className="text-xs text-gray-400 font-mono">{p.sku}</span>
-                      </button>
-                    ))}
-                  {otherProducts.filter((p) => {
-                    if (form.related_ids.includes(p.id)) return false;
-                    const q = relatedSearch.toLowerCase();
-                    return p.name_en.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
-                  }).length === 0 && (
-                    <div className="px-3 py-2 text-xs text-gray-400">{ta('productForm.noMatchingProducts', lang)}</div>
-                  )}
-                </div>
-              )}
+              <p className="text-xs text-gray-400 mt-1">URL path: /products/{form.slug || slugify(form.name_en) || '...'}</p>
             </div>
           </div>
-        )}
 
-        {/* Actions */}
-        <div className="flex items-center gap-3 pt-2">
-          <button
-            type="submit"
-            disabled={saving}
-            className="bg-brand-magenta text-white text-sm px-6 py-2 rounded hover:opacity-90 transition disabled:opacity-50"
-          >
-            {saving ? ta('common.saving', lang) : isNew ? ta('productForm.createProduct', lang) : ta('productForm.saveChanges', lang)}
-          </button>
-          <Link href="/admin/products" className="text-sm text-gray-500 hover:text-brand-navy">
-            {ta('common.cancel', lang)}
-          </Link>
+          {/* Classification Card — Brand / Category / Type */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.brand', lang)}</label>
+                <select
+                  value={form.brand_id}
+                  onChange={(e) => setForm({ ...form, brand_id: e.target.value })}
+                  className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                >
+                  <option value="">{ta('common.none', lang)}</option>
+                  {brands.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name_en}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.category', lang)}</label>
+                <select
+                  value={form.category_id}
+                  onChange={(e) => setForm({ ...form, category_id: e.target.value })}
+                  className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                >
+                  <option value="">{ta('common.none', lang)}</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.parent_id ? '\u00A0\u00A0\u00A0' : ''}{c.name_en}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.type', lang)}</label>
+                <select
+                  value={form.type_id}
+                  onChange={(e) => setForm({ ...form, type_id: e.target.value })}
+                  className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                >
+                  <option value="">{ta('common.none', lang)}</option>
+                  {types.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name_en}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* SKU & Variants Card — Mode toggle, SKU (simple), Variants table (variable) */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
+            {/* Mode toggle */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-2">{ta('productForm.mode', lang)}</label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, mode: 'simple' }))}
+                  className={`px-3 py-1.5 text-sm rounded-lg border transition ${
+                    form.mode === 'simple'
+                      ? 'border-brand-purple bg-brand-purple text-white'
+                      : 'border-gray-300 text-gray-700 hover:border-brand-purple'
+                  }`}
+                >
+                  {ta('productForm.modeSimple', lang)}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, mode: 'variable' }))}
+                  className={`px-3 py-1.5 text-sm rounded-lg border transition ${
+                    form.mode === 'variable'
+                      ? 'border-brand-purple bg-brand-purple text-white'
+                      : 'border-gray-300 text-gray-700 hover:border-brand-purple'
+                  }`}
+                >
+                  {ta('productForm.modeVariable', lang)}
+                </button>
+              </div>
+            </div>
+
+            {/* SKU (simple mode) */}
+            {form.mode === 'simple' && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.sku', lang)}</label>
+                <input
+                  type="text"
+                  required
+                  value={form.sku}
+                  onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                  className="w-full max-w-xs border border-gray-200 rounded px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                />
+              </div>
+            )}
+
+            {/* Variants table (variable mode) */}
+            {form.mode === 'variable' && (
+              <>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-medium text-gray-500">{ta('productForm.variants', lang)}</label>
+                  <button
+                    type="button"
+                    onClick={addVariant}
+                    className="text-xs text-brand-purple hover:text-brand-magenta font-medium"
+                  >
+                    {ta('productForm.addVariant', lang)}
+                  </button>
+                </div>
+                {form.variants.length === 0 ? (
+                  <p className="text-xs text-gray-400">{ta('productForm.noVariants', lang)}</p>
+                ) : (
+                  <div className="border border-gray-200 rounded overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-200">
+                          <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">{ta('productForm.nameEn', lang)}</th>
+                          <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">{ta('productForm.nameKo', lang)}</th>
+                          <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">{ta('productForm.sku', lang)}</th>
+                          <th className="w-8"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {form.variants.map((v, i) => (
+                          <tr key={i} className="border-b border-gray-100">
+                            <td className="px-3 py-2">
+                              <input
+                                type="text"
+                                value={v.name_en}
+                                onChange={(e) => updateVariant(i, 'name_en', e.target.value)}
+                                placeholder="e.g. 20x Objective"
+                                className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                type="text"
+                                value={v.name_ko}
+                                onChange={(e) => updateVariant(i, 'name_ko', e.target.value)}
+                                placeholder="e.g. 20x ..."
+                                className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                type="text"
+                                value={v.sku}
+                                onChange={(e) => updateVariant(i, 'sku', e.target.value)}
+                                placeholder="e.g. P250-20"
+                                className="w-full border border-gray-200 rounded px-2 py-1 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <button
+                                type="button"
+                                onClick={() => removeVariant(i)}
+                                className="text-red-400 hover:text-red-600"
+                                title={ta('common.remove', lang)}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                </svg>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+        </div>
+      </div>
+
+        {/* ===== FULL-WIDTH SECTION (below the 2-col layout) ===== */}
+        <div className="space-y-6">
+          {/* Descriptions Card */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="mb-4">
+              <h2 className="text-sm font-bold text-brand-navy">{lang === 'en' ? 'Summary Content' : '요약 콘텐츠'}</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.descriptionEn', lang)}</label>
+                <textarea
+                  rows={4}
+                  value={form.description_en}
+                  onChange={(e) => setForm({ ...form, description_en: e.target.value })}
+                  className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.descriptionKo', lang)}</label>
+                <textarea
+                  rows={4}
+                  value={form.description_ko}
+                  onChange={(e) => setForm({ ...form, description_ko: e.target.value })}
+                  className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Features Card */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="mb-4">
+              <h2 className="text-sm font-bold text-brand-navy">{lang === 'en' ? 'Key Features' : '핵심 특징'}</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.featuresEn', lang)}</label>
+                <textarea
+                  rows={4}
+                  value={form.features_en}
+                  onChange={(e) => setForm({ ...form, features_en: e.target.value })}
+                  className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.featuresKo', lang)}</label>
+                <textarea
+                  rows={4}
+                  value={form.features_ko}
+                  onChange={(e) => setForm({ ...form, features_ko: e.target.value })}
+                  className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Detailed Description Card */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="mb-4">
+              <h2 className="text-sm font-bold text-brand-navy">{lang === 'en' ? 'Detailed Content' : '상세 콘텐츠'}</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.detailEn', lang)}</label>
+                <RichTextEditor
+                  value={form.detail_en}
+                  onChange={(value) => setForm((prev) => ({ ...prev, detail_en: value }))}
+                  placeholder="Long-form product description..."
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.detailKo', lang)}</label>
+                <RichTextEditor
+                  value={form.detail_ko}
+                  onChange={(value) => setForm((prev) => ({ ...prev, detail_ko: value }))}
+                  placeholder="..."
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Specifications Card */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="mb-4">
+              <h2 className="text-sm font-bold text-brand-navy">{lang === 'en' ? 'Specifications' : '사양'}</h2>
+            </div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-medium text-gray-500">{ta('productForm.specifications', lang)}</label>
+              <button
+                type="button"
+                onClick={addSpec}
+                className="text-xs text-brand-purple hover:text-brand-magenta font-medium"
+              >
+                {ta('productForm.addSpec', lang)}
+              </button>
+            </div>
+            {form.specs.length === 0 ? (
+              <p className="text-xs text-gray-400">{ta('productForm.noSpecs', lang)}</p>
+            ) : (
+              <div className="border border-gray-200 rounded overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">{ta('productForm.keyEn', lang)}</th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">{ta('productForm.keyKo', lang)}</th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">{ta('productForm.valueEn', lang)}</th>
+                      <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">{ta('productForm.valueKo', lang)}</th>
+                      <th className="w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {form.specs.map((s, i) => (
+                      <tr key={i} className="border-b border-gray-100">
+                        <td className="px-3 py-2">
+                          <input
+                            type="text"
+                            value={s.key_en}
+                            onChange={(e) => updateSpec(i, 'key_en', e.target.value)}
+                            placeholder="e.g. Weight"
+                            className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="text"
+                            value={s.key_ko}
+                            onChange={(e) => updateSpec(i, 'key_ko', e.target.value)}
+                            placeholder="e.g. ..."
+                            className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="text"
+                            value={s.value_en}
+                            onChange={(e) => updateSpec(i, 'value_en', e.target.value)}
+                            placeholder="e.g. 5 kg"
+                            className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="text"
+                            value={s.value_ko}
+                            onChange={(e) => updateSpec(i, 'value_ko', e.target.value)}
+                            placeholder="e.g. 5 kg"
+                            className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <button
+                            type="button"
+                            onClick={() => removeSpec(i)}
+                            className="text-red-400 hover:text-red-600"
+                            title={ta('common.remove', lang)}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
         </div>
       </form>
     </div>

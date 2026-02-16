@@ -6,7 +6,7 @@ import { useLanguage, localize } from '@/components/LanguageProvider';
 import { t } from '@/lib/i18n';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import ProductCard from '@/components/ProductCard';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import type { Product, Variant, ProductImage, ProductSpec } from '@/lib/types';
 
 interface Props {
@@ -31,8 +31,10 @@ function getVideoEmbedUrl(url: string): string | null {
 
 export default function ProductDetailClient({ product, relatedProducts, variants, images, specs }: Props) {
   const { lang } = useLanguage();
-  const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const initialVariant = product.mode === 'variable' ? (variants[0] || null) : null;
+  const initialVariantImageIndex = initialVariant ? images.findIndex((img) => img.variant_id === initialVariant.id) : -1;
+  const [selectedVariant, setSelectedVariant] = useState<Variant | null>(initialVariant);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(initialVariantImageIndex >= 0 ? initialVariantImageIndex : 0);
   const [activeTab, setActiveTab] = useState<'description' | 'specifications'>('description');
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -53,6 +55,7 @@ export default function ProductDetailClient({ product, relatedProducts, variants
   const categoryName = localize(lang, product.category_name_en, product.category_name_ko);
   const typeName = localize(lang, product.type_name_en, product.type_name_ko);
   const brandName = localize(lang, product.brand_name_en, product.brand_name_ko);
+  const isVariableProduct = product.mode === 'variable' && variants.length > 0;
 
   // Build gallery items: use gallery images if available, else fall back to single product.image
   const hasGallery = images.length > 0;
@@ -62,16 +65,12 @@ export default function ProductDetailClient({ product, relatedProducts, variants
       ? [{ id: 0, product_id: product.id, url: product.image, type: 'image' as const, alt_en: null, alt_ko: null, variant_id: null, sort_order: 0 }]
       : [];
 
-  // When a variant is selected, jump to first gallery image linked to it
-  const jumpToVariantImage = useCallback((variant: Variant | null) => {
-    if (!variant || !hasGallery) return;
+  function handleSelectVariant(variant: Variant) {
+    setSelectedVariant(variant);
+    if (!hasGallery) return;
     const idx = images.findIndex((img) => img.variant_id === variant.id);
     if (idx >= 0) setSelectedImageIndex(idx);
-  }, [images, hasGallery]);
-
-  useEffect(() => {
-    jumpToVariantImage(selectedVariant);
-  }, [selectedVariant, jumpToVariantImage]);
+  }
 
   const currentItem = galleryItems[selectedImageIndex] || galleryItems[0];
 
@@ -200,27 +199,16 @@ export default function ProductDetailClient({ product, relatedProducts, variants
           </div>
 
           {/* Variants */}
-          {variants.length > 0 && (
+          {isVariableProduct && (
             <div className="mb-6">
               <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">
                 {lang === 'en' ? 'Variations' : '제품 옵션'}
               </h2>
               <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setSelectedVariant(null)}
-                  className={`px-3 py-1.5 text-sm rounded-lg border transition ${
-                    !selectedVariant
-                      ? 'border-brand-purple bg-brand-purple text-white'
-                      : 'border-gray-300 text-gray-700 hover:border-brand-purple'
-                  }`}
-                >
-                  {localize(lang, product.name_en, product.name_ko)}
-                  <span className="ml-1 text-xs opacity-70">({product.sku})</span>
-                </button>
                 {variants.map((v) => (
                   <button
                     key={v.id}
-                    onClick={() => setSelectedVariant(v)}
+                    onClick={() => handleSelectVariant(v)}
                     className={`px-3 py-1.5 text-sm rounded-lg border transition ${
                       selectedVariant?.id === v.id
                         ? 'border-brand-purple bg-brand-purple text-white'
@@ -277,7 +265,7 @@ export default function ProductDetailClient({ product, relatedProducts, variants
                 const params = new URLSearchParams();
                 params.set('product', String(product.id));
                 params.set('name', name);
-                params.set('sku', selectedVariant?.sku || product.sku);
+                params.set('sku', selectedVariant?.sku || variants[0]?.sku || product.sku);
                 if (selectedVariant) params.set('variant', localize(lang, selectedVariant.name_en, selectedVariant.name_ko));
                 params.set('lang', lang);
                 return `/contact?${params.toString()}`;

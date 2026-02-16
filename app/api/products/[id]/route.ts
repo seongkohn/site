@@ -78,17 +78,42 @@ export async function PUT(
     }
 
     const {
-      name_en, name_ko, sku, category_id, type_id, brand_id,
+      name_en, name_ko, mode, sku, category_id, type_id, brand_id,
       description_en, description_ko, features_en, features_ko,
       detail_en, detail_ko,
       image, is_published, is_featured,
     } = body;
+    const productMode: 'simple' | 'variable' = mode === 'variable' ? 'variable' : (existing.mode === 'variable' ? 'variable' : 'simple');
+    const validVariants = Array.isArray(body.variants)
+      ? body.variants.filter((v: { name_en: string; sku: string }) => v?.name_en && v?.sku)
+      : [];
+
+    if (productMode === 'simple') {
+      if (sku !== undefined && !sku) {
+        return NextResponse.json({ error: 'sku is required for simple products' }, { status: 400 });
+      }
+      if (body.variants !== undefined && validVariants.length > 0) {
+        return NextResponse.json({ error: 'simple products cannot include variants' }, { status: 400 });
+      }
+    }
+
+    if (productMode === 'variable') {
+      if (body.variants !== undefined && validVariants.length === 0) {
+        return NextResponse.json({ error: 'variable products must include at least one variant' }, { status: 400 });
+      }
+      if (body.variants === undefined) {
+        const countRow = db.prepare('SELECT COUNT(*) as count FROM product_variants WHERE product_id = ?').get(productId) as { count: number };
+        if (!countRow.count) {
+          return NextResponse.json({ error: 'variable products must include at least one variant' }, { status: 400 });
+        }
+      }
+    }
 
     const slug = body.slug || (name_en ? slugify(name_en, { lower: true, strict: true }) : existing.slug);
 
     db.prepare(`
       UPDATE products SET
-        name_en = ?, name_ko = ?, slug = ?, sku = ?,
+        name_en = ?, name_ko = ?, mode = ?, slug = ?, sku = ?,
         category_id = ?, type_id = ?, brand_id = ?,
         description_en = ?, description_ko = ?,
         features_en = ?, features_ko = ?,
@@ -99,8 +124,11 @@ export async function PUT(
     `).run(
       name_en ?? existing.name_en,
       name_ko ?? existing.name_ko,
+      productMode,
       slug,
-      sku ?? existing.sku,
+      productMode === 'variable'
+        ? (validVariants[0]?.sku ?? existing.sku)
+        : (sku ?? existing.sku),
       category_id !== undefined ? (category_id || null) : existing.category_id,
       type_id !== undefined ? (type_id || null) : existing.type_id,
       brand_id !== undefined ? (brand_id || null) : existing.brand_id,
@@ -126,10 +154,12 @@ export async function PUT(
     }
 
     // Handle variants
-    if (body.variants !== undefined && Array.isArray(body.variants)) {
+    if (productMode === 'simple') {
+      db.prepare('DELETE FROM product_variants WHERE product_id = ?').run(productId);
+    } else if (body.variants !== undefined && Array.isArray(body.variants)) {
       db.prepare('DELETE FROM product_variants WHERE product_id = ?').run(productId);
       const insertVariant = db.prepare('INSERT INTO product_variants (product_id, name_en, name_ko, sku, sort_order) VALUES (?, ?, ?, ?, ?)');
-      body.variants.forEach((v: { name_en: string; name_ko: string; sku: string }, i: number) => {
+      validVariants.forEach((v: { name_en: string; name_ko: string; sku: string }, i: number) => {
         if (v.name_en && v.sku) {
           insertVariant.run(productId, v.name_en, v.name_ko || '', v.sku, i);
         }

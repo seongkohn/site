@@ -35,6 +35,7 @@ export interface Product {
   id: number;
   name_en: string;
   name_ko: string;
+  mode: 'simple' | 'variable';
   slug: string;
   sku: string;
   category_id: number | null;

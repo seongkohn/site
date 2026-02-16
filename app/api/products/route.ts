@@ -101,25 +101,43 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     const {
-      name_en, name_ko, sku, category_id, type_id, brand_id,
+      name_en, name_ko, mode, sku, category_id, type_id, brand_id,
       description_en, description_ko, features_en, features_ko,
       detail_en, detail_ko,
       image, is_published, is_featured,
     } = body;
 
-    if (!name_en || !sku) {
-      return NextResponse.json({ error: 'name_en and sku are required' }, { status: 400 });
+    const productMode: 'simple' | 'variable' = mode === 'variable' ? 'variable' : 'simple';
+    const validVariants = Array.isArray(body.variants)
+      ? body.variants.filter((v: { name_en: string; sku: string }) => v?.name_en && v?.sku)
+      : [];
+
+    if (!name_en) {
+      return NextResponse.json({ error: 'name_en is required' }, { status: 400 });
+    }
+
+    if (productMode === 'simple' && !sku) {
+      return NextResponse.json({ error: 'sku is required for simple products' }, { status: 400 });
+    }
+
+    if (productMode === 'simple' && validVariants.length > 0) {
+      return NextResponse.json({ error: 'simple products cannot include variants' }, { status: 400 });
+    }
+
+    if (productMode === 'variable' && validVariants.length === 0) {
+      return NextResponse.json({ error: 'variable products must include at least one variant' }, { status: 400 });
     }
 
     const slug = body.slug || slugify(name_en, { lower: true, strict: true });
+    const skuValue = productMode === 'variable' ? validVariants[0].sku : sku;
 
     const result = db.prepare(`
-      INSERT INTO products (name_en, name_ko, slug, sku, category_id, type_id, brand_id,
+      INSERT INTO products (name_en, name_ko, mode, slug, sku, category_id, type_id, brand_id,
         description_en, description_ko, features_en, features_ko, detail_en, detail_ko,
         image, is_published, is_featured)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      name_en, name_ko, slug, sku,
+      name_en, name_ko, productMode, slug, skuValue,
       category_id || null, type_id || null, brand_id || null,
       description_en || null, description_ko || null,
       features_en || null, features_ko || null,
@@ -137,9 +155,9 @@ export async function POST(request: Request) {
     }
 
     // Handle variants
-    if (body.variants && Array.isArray(body.variants)) {
+    if (productMode === 'variable') {
       const insertVariant = db.prepare('INSERT INTO product_variants (product_id, name_en, name_ko, sku, sort_order) VALUES (?, ?, ?, ?, ?)');
-      body.variants.forEach((v: { name_en: string; name_ko: string; sku: string }, i: number) => {
+      validVariants.forEach((v: { name_en: string; name_ko: string; sku: string }, i: number) => {
         if (v.name_en && v.sku) {
           insertVariant.run(result.lastInsertRowid, v.name_en, v.name_ko || '', v.sku, i);
         }

@@ -71,6 +71,7 @@ export function initializeSchema() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name_en TEXT NOT NULL,
       name_ko TEXT DEFAULT '',
+      mode TEXT NOT NULL DEFAULT 'simple',
       slug TEXT NOT NULL UNIQUE,
       sku TEXT NOT NULL,
       category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
@@ -166,6 +167,11 @@ export function initializeSchema() {
   // Migration: add detail_en/detail_ko to products if missing
   try { db.exec('ALTER TABLE products ADD COLUMN detail_en TEXT'); } catch {}
   try { db.exec('ALTER TABLE products ADD COLUMN detail_ko TEXT'); } catch {}
+  // Migration: add mode to products if missing
+  try { db.exec("ALTER TABLE products ADD COLUMN mode TEXT NOT NULL DEFAULT 'simple'"); } catch {}
+  // Migration: backfill mode by existing variants
+  try { db.exec("UPDATE products SET mode = 'simple' WHERE mode IS NULL OR mode = ''"); } catch {}
+  try { db.exec("UPDATE products SET mode = 'variable' WHERE id IN (SELECT DISTINCT product_id FROM product_variants)"); } catch {}
 
   // Migration: add featured_order to products if missing
   try { db.exec('ALTER TABLE products ADD COLUMN featured_order INTEGER DEFAULT 0'); } catch {}
