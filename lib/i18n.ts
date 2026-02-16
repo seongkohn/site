@@ -34,7 +34,7 @@ export const translations = {
     histology: { en: 'Histology', ko: '조직병리' },
     histologyDesc: { en: 'Tissue processors, microtomes, stainers, coverslippers', ko: '조직처리기, 마이크로톰, 염색기, 봉입기' },
     cytology: { en: 'Cytology', ko: '세포병리' },
-    cytologyDesc: { en: 'Liquid-based cytology, cytocentrifuges, cell blocks', ko: '액상세포검사, 사이토센트리퓨지, 셀블록' },
+    cytologyDesc: { en: 'Liquid-based cytology, cytocentrifuges', ko: '액상세포검사, 세포원심분리기' },
     digitalPathology: { en: 'Digital Pathology', ko: '디지털병리' },
     digitalPathologyDesc: { en: 'Slide scanners, image analysis, AI', ko: '슬라이드 스캐너, 이미지 분석, AI' },
     instruments: { en: 'Instruments', ko: '장비' },
