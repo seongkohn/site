@@ -47,7 +47,21 @@ npm run build
 
 ## One-Command Deploy (Local -> GitHub -> Server)
 
-Use:
+First-time setup:
+
+```bash
+cp .ship.env.example .ship.env
+```
+
+Then edit `.ship.env` and set your real host:
+
+```bash
+SHIP_REMOTE_HOST=ubuntu@3.36.56.15
+SHIP_REMOTE_APP_DIR=/var/www/seongkohn-site
+SHIP_BRANCH=main
+```
+
+Deploy with:
 
 ```bash
 ./ship "short message about your change"
@@ -58,6 +72,6 @@ What `./ship` does:
 1. `git add -A` (stage all local changes)
 2. `git commit -m "..."` (save a commit)
 3. `git push origin main` (send commit to GitHub)
-4. `ssh ubuntu@3.36.56.15 "cd /var/www/seongkohn-site && bash deploy.sh"` (server pulls/builds/restarts)
+4. `ssh <your host from .ship.env> "cd <your app dir> && bash deploy.sh"` (server pulls/builds/restarts)
 
 If there are no local file changes, it stops safely and does nothing.
