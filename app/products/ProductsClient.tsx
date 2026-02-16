@@ -397,10 +397,7 @@ export default function ProductsClient({
           {/* Products grid */}
           {!loading && products.length > 0 && (
             <div
-              className="grid gap-4"
-              style={{
-                gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
-              }}
+              className="grid gap-4 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
             >
               {products.map((product) => (
                 <ProductCard key={product.id} product={product} />
