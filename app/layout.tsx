@@ -91,7 +91,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" suppressHydrationWarning className={`${inter.variable} ${notoSansKR.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${notoSansKR.variable}`}>
       <body className="antialiased">
         <script
           type="application/ld+json"

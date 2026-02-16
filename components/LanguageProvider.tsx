@@ -26,7 +26,7 @@ export function localize(lang: Lang, en: string | null | undefined, ko: string |
 }
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>('ko');
+  const [lang, setLangState] = useState<Lang>('en');
 
   useEffect(() => {
     const saved = localStorage.getItem('lang') as Lang | null;

@@ -17,8 +17,10 @@ echo "==> Copying static files to standalone..."
 cp -r public .next/standalone/public
 cp -r .next/static .next/standalone/.next/static
 
-echo "==> Ensuring data directory exists..."
+echo "==> Ensuring data directory and standalone symlinks..."
 mkdir -p data
+ln -sf "$APP_DIR/data" .next/standalone/data
+ln -sf "$APP_DIR/.env.local" .next/standalone/.env.local
 
 echo "==> Restarting PM2..."
 pm2 restart ecosystem.config.js --update-env || pm2 start ecosystem.config.js
