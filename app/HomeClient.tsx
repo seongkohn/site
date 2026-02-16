@@ -13,13 +13,123 @@ interface HomeClientProps {
   heroSlides: HeroSlide[];
 }
 
+/* ---- Pathology-themed SVG icons for the category grid ---- */
+const iconClass = "w-7 h-7 flex-shrink-0 text-brand-purple";
+
+function IconHistology() {
+  // Tissue cassette / embedding block
+  return (
+    <svg className={iconClass} viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="6" width="24" height="20" rx="2" />
+      <line x1="4" y1="11" x2="28" y2="11" />
+      <rect x="9" y="15" width="14" height="8" rx="1" fill="currentColor" opacity="0.15" />
+      <line x1="12" y1="15" x2="12" y2="23" />
+      <line x1="20" y1="15" x2="20" y2="23" />
+      <line x1="9" y1="19" x2="23" y2="19" />
+    </svg>
+  );
+}
+
+function IconCytology() {
+  // ThinPrep slide with characteristic circle deposit
+  return (
+    <svg className={iconClass} viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="8" y="2" width="16" height="28" rx="1.5" />
+      <rect x="8" y="2" width="16" height="6" rx="1.5" fill="currentColor" opacity="0.12" />
+      <circle cx="16" cy="18" r="5" fill="currentColor" opacity="0.1" />
+      <circle cx="16" cy="18" r="5" />
+      <circle cx="14.5" cy="17" r="0.8" fill="currentColor" opacity="0.4" />
+      <circle cx="17" cy="19" r="0.6" fill="currentColor" opacity="0.4" />
+      <circle cx="16" cy="16.5" r="0.5" fill="currentColor" opacity="0.3" />
+    </svg>
+  );
+}
+
+function IconDigitalPathology() {
+  // Monitor displaying a scanned slide
+  return (
+    <svg className={iconClass} viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="26" height="18" rx="2" />
+      <rect x="6" y="7" width="20" height="12" rx="1" fill="currentColor" opacity="0.08" />
+      <line x1="13" y1="22" x2="19" y2="22" />
+      <line x1="16" y1="22" x2="16" y2="26" />
+      <line x1="11" y1="26" x2="21" y2="26" />
+      {/* Slide thumbnail on screen */}
+      <rect x="10" y="9" width="8" height="3" rx="0.5" fill="currentColor" opacity="0.2" />
+      <rect x="20" y="9" width="3" height="8" rx="0.5" stroke="currentColor" strokeWidth="1.2" fill="currentColor" opacity="0.12" />
+    </svg>
+  );
+}
+
+function IconInstruments() {
+  // Tissue processor / lab instrument
+  return (
+    <svg className={iconClass} viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5" y="8" width="22" height="18" rx="2" />
+      <rect x="5" y="8" width="22" height="5" rx="2" fill="currentColor" opacity="0.1" />
+      <circle cx="9" cy="10.5" r="1" fill="currentColor" opacity="0.4" />
+      <circle cx="13" cy="10.5" r="1" fill="currentColor" opacity="0.4" />
+      <rect x="9" y="17" width="14" height="6" rx="1" fill="currentColor" opacity="0.08" />
+      <line x1="9" y1="20" x2="23" y2="20" />
+      <line x1="5" y1="26" x2="8" y2="29" />
+      <line x1="27" y1="26" x2="24" y2="29" />
+    </svg>
+  );
+}
+
+function IconConsumables() {
+  // Microtome blade
+  return (
+    <svg className={iconClass} viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 10 L28 10 L26 16 L4 16 Z" fill="currentColor" opacity="0.1" />
+      <path d="M4 10 L28 10 L26 16 L4 16 Z" />
+      <line x1="4" y1="16" x2="26" y2="16" strokeWidth="2.2" />
+      <line x1="8" y1="12" x2="8" y2="14" strokeWidth="1.2" opacity="0.4" />
+      <line x1="13" y1="11.5" x2="13" y2="14.5" strokeWidth="1.2" opacity="0.4" />
+      <line x1="18" y1="11" x2="18" y2="15" strokeWidth="1.2" opacity="0.4" />
+      <line x1="23" y1="10.5" x2="23" y2="15.5" strokeWidth="1.2" opacity="0.4" />
+      {/* Blade edge highlight */}
+      <path d="M3 16.5 L27 16.5" strokeWidth="0.8" opacity="0.3" />
+      {/* Packaging hint */}
+      <rect x="6" y="20" width="20" height="5" rx="1" opacity="0.5" />
+      <line x1="11" y1="20" x2="11" y2="25" opacity="0.3" />
+      <line x1="16" y1="20" x2="16" y2="25" opacity="0.3" />
+      <line x1="21" y1="20" x2="21" y2="25" opacity="0.3" />
+    </svg>
+  );
+}
+
+function IconReagents() {
+  // Reagent bottle with label
+  return (
+    <svg className={iconClass} viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 8 L12 4 L20 4 L20 8" />
+      <path d="M11 8 L10 12 L10 27 Q10 29 12 29 L20 29 Q22 29 22 27 L22 12 L21 8 Z" />
+      <rect x="12" y="16" width="8" height="6" rx="0.5" fill="currentColor" opacity="0.15" />
+      <line x1="13" y1="18" x2="19" y2="18" strokeWidth="1.2" opacity="0.4" />
+      <line x1="14" y1="20" x2="18" y2="20" strokeWidth="1.2" opacity="0.3" />
+      {/* Liquid level */}
+      <path d="M10.5 23 Q16 21 21.5 23 L22 27 Q22 29 20 29 L12 29 Q10 29 10 27 Z" fill="currentColor" opacity="0.1" />
+    </svg>
+  );
+}
+
+const catIcons: Record<string, React.ReactNode> = {
+  histology: <IconHistology />,
+  cytology: <IconCytology />,
+  'digital-pathology': <IconDigitalPathology />,
+  instruments: <IconInstruments />,
+  consumables: <IconConsumables />,
+  reagents: <IconReagents />,
+};
+
 const homeCats = [
-  { id: 'histology', nameKey: 'homeCats.histology', descKey: 'homeCats.histologyDesc', icon: '\uD83E\uDDEB' },
-  { id: 'cytology', nameKey: 'homeCats.cytology', descKey: 'homeCats.cytologyDesc', icon: '\uD83D\uDD2C' },
-  { id: 'digital-pathology', nameKey: 'homeCats.digitalPathology', descKey: 'homeCats.digitalPathologyDesc', icon: '\uD83D\uDDA5\uFE0F' },
-  { id: 'instruments', nameKey: 'homeCats.instruments', descKey: 'homeCats.instrumentsDesc', icon: '\u2699\uFE0F' },
-  { id: 'consumables', nameKey: 'homeCats.consumables', descKey: 'homeCats.consumablesDesc', icon: '\uD83D\uDCE6' },
-  { id: 'reagents', nameKey: 'homeCats.reagents', descKey: 'homeCats.reagentsDesc', icon: '\uD83E\uDDEA' },
+  { id: 'histology', nameKey: 'homeCats.histology', descKey: 'homeCats.histologyDesc' },
+  { id: 'cytology', nameKey: 'homeCats.cytology', descKey: 'homeCats.cytologyDesc' },
+  { id: 'digital-pathology', nameKey: 'homeCats.digitalPathology', descKey: 'homeCats.digitalPathologyDesc' },
+  { id: 'instruments', nameKey: 'homeCats.instruments', descKey: 'homeCats.instrumentsDesc' },
+  { id: 'consumables', nameKey: 'homeCats.consumables', descKey: 'homeCats.consumablesDesc' },
+  { id: 'reagents', nameKey: 'homeCats.reagents', descKey: 'homeCats.reagentsDesc' },
 ];
 
 function FeaturedCarousel({ products, lang }: { products: Product[]; lang: 'en' | 'ko' }) {
@@ -266,7 +376,7 @@ export default function HomeClient({ featuredProducts, brands, heroSlides }: Hom
               href="/products"
               className="group bg-white border border-gray-200 rounded-md p-5 flex gap-3 items-start hover:border-brand-magenta/30 hover:shadow-md"
             >
-              <span className="text-2xl flex-shrink-0">{cat.icon}</span>
+              {catIcons[cat.id]}
               <div>
                 <h3 className="font-semibold text-sm text-gray-800 group-hover:text-brand-magenta">
                   {t(cat.nameKey, lang)}
