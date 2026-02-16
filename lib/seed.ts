@@ -171,7 +171,7 @@ export function seedDatabase() {
   insertSlide.run('Remote Pathology Made Effortless', '원격 병리학을 쉽게', 'Ocus Slide Scanners', 'Ocus 슬라이드 스캐너', '/images/hero/ocus_banner.jpg', 'light', 'right', 4);
 
   // Default settings
-  const insertSetting = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)');
+  const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
   insertSetting.run('company_name_en', 'Seongkohn Traders Corp.');
   insertSetting.run('company_name_ko', '성곤무역(주)');
   insertSetting.run('company_address_en', '38, Hakdong-ro 50-gil, Gangnam-gu, Seoul 06100, Korea');
