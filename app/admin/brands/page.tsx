@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import type { Brand } from '@/lib/types';
+import { useLanguage } from '@/components/LanguageProvider';
+import { ta } from '@/lib/i18n-admin';
+import { SortableList, SortableTableRow, DragHandle } from '@/components/admin/SortableList';
 
 const emptyForm = {
   name_en: '',
@@ -15,6 +18,7 @@ const emptyForm = {
 };
 
 export default function BrandsPage() {
+  const { lang } = useLanguage();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyForm);
@@ -50,10 +54,10 @@ export default function BrandsPage() {
         const data = await res.json();
         setForm((prev) => ({ ...prev, logo: data.url }));
       } else {
-        alert('Upload failed');
+        alert(ta('common.uploadFailed', lang));
       }
     } catch {
-      alert('Upload failed');
+      alert(ta('common.uploadFailed', lang));
     }
     setUploading(false);
   }
@@ -87,7 +91,7 @@ export default function BrandsPage() {
       setEditingId(null);
       await fetchBrands();
     } catch {
-      alert('Failed to save brand');
+      alert(ta('brands.saveFailed', lang));
     }
     setSaving(false);
   }
@@ -112,12 +116,12 @@ export default function BrandsPage() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('Delete this brand?')) return;
+    if (!confirm(ta('brands.confirmDelete', lang))) return;
     try {
       await fetch(`/api/brands/${id}`, { method: 'DELETE' });
       await fetchBrands();
     } catch {
-      alert('Failed to delete brand');
+      alert(ta('brands.deleteFailed', lang));
     }
   }
 
@@ -139,48 +143,49 @@ export default function BrandsPage() {
   }
 
   async function handleBulkDelete() {
-    if (!confirm(`Delete ${selected.size} brand(s)?`)) return;
+    if (!confirm(`${selected.size} ${ta('brands.confirmBulkDelete', lang)}`)) return;
     setDeleting(true);
     try {
       await Promise.all([...selected].map((id) => fetch(`/api/brands/${id}`, { method: 'DELETE' })));
       setSelected(new Set());
       await fetchBrands();
     } catch {
-      alert('Failed to delete some brands');
+      alert(ta('brands.bulkDeleteFailed', lang));
     }
     setDeleting(false);
   }
 
-  async function handleMove(id: number, direction: 'up' | 'down') {
+  async function handleReorder(orderedIds: number[]) {
+    const prev = brands;
+    setBrands(orderedIds.map((id) => brands.find((b) => b.id === id)!));
     try {
-      await fetch('/api/reorder', {
+      await fetch('/api/reorder-batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table: 'brands', id, direction }),
+        body: JSON.stringify({ table: 'brands', ids: orderedIds }),
       });
-      await fetchBrands();
     } catch {
-      // error
+      setBrands(prev);
     }
   }
 
   if (loading) {
-    return <div className="text-sm text-gray-500">Loading brands...</div>;
+    return <div className="text-sm text-gray-500">{ta('brands.loadingBrands', lang)}</div>;
   }
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-brand-navy mb-4">Brands</h1>
+      <h1 className="text-xl font-bold text-brand-navy mb-4">{ta('brands.title', lang)}</h1>
 
       {/* Add/Edit form */}
       <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
         <p className="text-xs font-medium text-gray-500 mb-3">
-          {editingId ? 'Edit Brand' : 'Add Brand'}
+          {editingId ? ta('brands.editBrand', lang) : ta('brands.addBrand', lang)}
         </p>
         <div className="space-y-3">
           <div className="flex flex-wrap items-end gap-3">
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Name EN</label>
+              <label className="block text-xs text-gray-400 mb-1">{ta('common.nameEn', lang)}</label>
               <input
                 type="text"
                 required
@@ -190,7 +195,7 @@ export default function BrandsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Name KO</label>
+              <label className="block text-xs text-gray-400 mb-1">{ta('common.nameKo', lang)}</label>
               <input
                 type="text"
                 value={form.name_ko}
@@ -199,7 +204,7 @@ export default function BrandsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Website</label>
+              <label className="block text-xs text-gray-400 mb-1">{ta('brands.website', lang)}</label>
               <input
                 type="url"
                 value={form.website}
@@ -211,7 +216,7 @@ export default function BrandsPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Description EN</label>
+              <label className="block text-xs text-gray-400 mb-1">{ta('brands.descriptionEn', lang)}</label>
               <textarea
                 rows={2}
                 value={form.description_en}
@@ -220,7 +225,7 @@ export default function BrandsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Description KO</label>
+              <label className="block text-xs text-gray-400 mb-1">{ta('brands.descriptionKo', lang)}</label>
               <textarea
                 rows={2}
                 value={form.description_ko}
@@ -230,7 +235,7 @@ export default function BrandsPage() {
             </div>
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Logo</label>
+            <label className="block text-xs text-gray-400 mb-1">{ta('brands.logo', lang)}</label>
             <div className="flex items-center gap-3">
               <input
                 type="file"
@@ -238,12 +243,12 @@ export default function BrandsPage() {
                 onChange={handleLogoUpload}
                 className="text-sm text-gray-500 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-brand-pale file:text-brand-navy"
               />
-              {uploading && <span className="text-xs text-gray-400">Uploading...</span>}
+              {uploading && <span className="text-xs text-gray-400">{ta('common.uploading', lang)}</span>}
               {form.logo && (
                 <span className="flex items-center gap-2">
                   <img src={form.logo} alt="Logo" className="w-8 h-8 object-contain" />
                   <button type="button" onClick={() => setForm({ ...form, logo: '' })} className="text-xs text-red-500">
-                    Remove
+                    {ta('common.remove', lang)}
                   </button>
                 </span>
               )}
@@ -257,7 +262,7 @@ export default function BrandsPage() {
                 onChange={(e) => setForm({ ...form, is_featured: e.target.checked })}
                 className="rounded border-gray-300"
               />
-              Show on website (Partners page, homepage)
+              {ta('brands.showOnWebsite', lang)}
             </label>
           </div>
           <div className="flex items-center gap-3">
@@ -266,11 +271,11 @@ export default function BrandsPage() {
               disabled={saving}
               className="bg-brand-magenta text-white text-sm px-4 py-1.5 rounded hover:opacity-90 transition disabled:opacity-50"
             >
-              {saving ? 'Saving...' : editingId ? 'Update' : 'Add'}
+              {saving ? ta('common.saving', lang) : editingId ? ta('common.update', lang) : ta('common.add', lang)}
             </button>
             {editingId && (
               <button type="button" onClick={cancelEdit} className="text-sm text-gray-500 hover:text-brand-navy">
-                Cancel
+                {ta('common.cancel', lang)}
               </button>
             )}
           </div>
@@ -285,7 +290,7 @@ export default function BrandsPage() {
             disabled={deleting}
             className="bg-red-500 text-white text-sm px-4 py-1.5 rounded hover:bg-red-600 transition disabled:opacity-50"
           >
-            {deleting ? 'Deleting...' : `Delete Selected (${selected.size})`}
+            {deleting ? ta('common.deleting', lang) : `${ta('common.delete', lang)} (${selected.size})`}
           </button>
         </div>
       )}
@@ -303,83 +308,70 @@ export default function BrandsPage() {
                   className="rounded border-gray-300"
                 />
               </th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Logo</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Name EN</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Name KO</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Website</th>
-              <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase">Featured</th>
-              <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase">Order</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
+              <th className="w-10"></th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('brands.logo', lang)}</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('common.nameEn', lang)}</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('common.nameKo', lang)}</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('brands.website', lang)}</th>
+              <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('productForm.featured', lang)}</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('common.actions', lang)}</th>
             </tr>
           </thead>
-          <tbody>
-            {brands.map((brand) => (
-              <tr key={brand.id} className="border-b border-gray-100 hover:bg-gray-50">
-                <td className="px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(brand.id)}
-                    onChange={() => toggleSelect(brand.id)}
-                    className="rounded border-gray-300"
-                  />
-                </td>
-                <td className="px-4 py-3">
-                  {brand.logo ? (
-                    <img src={brand.logo} alt={brand.name_en} className="w-8 h-8 object-contain" />
-                  ) : (
-                    <span className="text-gray-300 text-xs">--</span>
+          <SortableList items={brands} onReorder={handleReorder}>
+            <tbody>
+              {brands.map((brand) => (
+                <SortableTableRow key={brand.id} id={brand.id}>
+                  {({ listeners, attributes }) => (
+                    <>
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(brand.id)}
+                          onChange={() => toggleSelect(brand.id)}
+                          className="rounded border-gray-300"
+                        />
+                      </td>
+                      <td className="px-2 py-3 text-center">
+                        <DragHandle listeners={listeners} attributes={attributes} />
+                      </td>
+                      <td className="px-4 py-3">
+                        {brand.logo ? (
+                          <img src={brand.logo} alt={brand.name_en} className="w-8 h-8 object-contain" />
+                        ) : (
+                          <span className="text-gray-300 text-xs">--</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 font-medium">{brand.name_en}</td>
+                      <td className="px-4 py-3 text-gray-600">{brand.name_ko}</td>
+                      <td className="px-4 py-3 text-xs text-gray-400">{brand.website || '--'}</td>
+                      <td className="px-4 py-3 text-center">
+                        {brand.is_featured ? (
+                          <span className="text-green-600 text-xs font-medium">{ta('common.yes', lang)}</span>
+                        ) : (
+                          <span className="text-gray-400 text-xs">{ta('common.no', lang)}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button onClick={() => startEdit(brand)} className="text-brand-purple hover:text-brand-magenta text-xs mr-3">
+                          {ta('common.edit', lang)}
+                        </button>
+                        <button onClick={() => handleDelete(brand.id)} className="text-red-500 hover:text-red-700 text-xs">
+                          {ta('common.delete', lang)}
+                        </button>
+                      </td>
+                    </>
                   )}
-                </td>
-                <td className="px-4 py-3 font-medium">{brand.name_en}</td>
-                <td className="px-4 py-3 text-gray-600">{brand.name_ko}</td>
-                <td className="px-4 py-3 text-xs text-gray-400">{brand.website || '--'}</td>
-                <td className="px-4 py-3 text-center">
-                  {brand.is_featured ? (
-                    <span className="text-green-600 text-xs font-medium">Yes</span>
-                  ) : (
-                    <span className="text-gray-400 text-xs">No</span>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    <button
-                      onClick={() => handleMove(brand.id, 'up')}
-                      className="p-1 text-gray-400 hover:text-brand-navy rounded hover:bg-gray-100"
-                      title="Move up"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleMove(brand.id, 'down')}
-                      className="p-1 text-gray-400 hover:text-brand-navy rounded hover:bg-gray-100"
-                      title="Move down"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button onClick={() => startEdit(brand)} className="text-brand-purple hover:text-brand-magenta text-xs mr-3">
-                    Edit
-                  </button>
-                  <button onClick={() => handleDelete(brand.id)} className="text-red-500 hover:text-red-700 text-xs">
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {brands.length === 0 && (
-              <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">
-                  No brands yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
+                </SortableTableRow>
+              ))}
+              {brands.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400 text-sm">
+                    {ta('brands.noBrands', lang)}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </SortableList>
         </table>
       </div>
     </div>

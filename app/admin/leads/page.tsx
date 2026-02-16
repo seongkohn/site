@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import type { Lead } from '@/lib/types';
+import { useLanguage } from '@/components/LanguageProvider';
+import { ta } from '@/lib/i18n-admin';
 
 interface LeadWithProduct extends Lead {
   product_name_en?: string;
 }
 
 export default function LeadsPage() {
+  const { lang } = useLanguage();
   const [leads, setLeads] = useState<LeadWithProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -37,18 +40,18 @@ export default function LeadsPage() {
       });
       setLeads(leads.map((l) => (l.id === id ? { ...l, is_read: 1 } : l)));
     } catch {
-      alert('Failed to update lead');
+      alert(ta('leads.updateFailed', lang));
     }
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('Delete this lead?')) return;
+    if (!confirm(ta('leads.confirmDelete', lang))) return;
     try {
       await fetch(`/api/leads/${id}`, { method: 'DELETE' });
       setLeads(leads.filter((l) => l.id !== id));
       if (expandedId === id) setExpandedId(null);
     } catch {
-      alert('Failed to delete lead');
+      alert(ta('leads.deleteFailed', lang));
     }
   }
 
@@ -70,7 +73,7 @@ export default function LeadsPage() {
   }
 
   async function handleBulkDelete() {
-    if (!confirm(`Delete ${selected.size} lead(s)?`)) return;
+    if (!confirm(`${selected.size} ${ta('leads.confirmBulkDelete', lang)}`)) return;
     setDeleting(true);
     try {
       await Promise.all([...selected].map((id) => fetch(`/api/leads/${id}`, { method: 'DELETE' })));
@@ -80,7 +83,7 @@ export default function LeadsPage() {
       setLeads((prev) => prev.filter((l) => !selected.has(l.id)));
       setSelected(new Set());
     } catch {
-      alert('Failed to delete some leads');
+      alert(ta('leads.bulkDeleteFailed', lang));
     }
     setDeleting(false);
   }
@@ -97,12 +100,12 @@ export default function LeadsPage() {
   }
 
   if (loading) {
-    return <div className="text-sm text-gray-500">Loading leads...</div>;
+    return <div className="text-sm text-gray-500">{ta('leads.loadingLeads', lang)}</div>;
   }
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-brand-navy mb-4">Leads</h1>
+      <h1 className="text-xl font-bold text-brand-navy mb-4">{ta('leads.title', lang)}</h1>
 
       {/* Bulk delete */}
       {selected.size > 0 && (
@@ -112,14 +115,14 @@ export default function LeadsPage() {
             disabled={deleting}
             className="bg-red-500 text-white text-sm px-4 py-1.5 rounded hover:bg-red-600 transition disabled:opacity-50"
           >
-            {deleting ? 'Deleting...' : `Delete Selected (${selected.size})`}
+            {deleting ? ta('common.deleting', lang) : `${ta('common.delete', lang)} (${selected.size})`}
           </button>
         </div>
       )}
 
       {leads.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-400 text-sm">
-          No leads yet.
+          {ta('leads.noLeads', lang)}
         </div>
       ) : (
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -134,12 +137,12 @@ export default function LeadsPage() {
                     className="rounded border-gray-300"
                   />
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Name</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Email</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Company</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Date</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('leads.name', lang)}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('leads.email', lang)}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('leads.company', lang)}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('leads.date', lang)}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('leads.status', lang)}</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('common.actions', lang)}</th>
               </tr>
             </thead>
             <tbody>
@@ -170,10 +173,10 @@ export default function LeadsPage() {
                     </td>
                     <td className="px-4 py-3">
                       {lead.is_read ? (
-                        <span className="text-xs text-gray-400">Read</span>
+                        <span className="text-xs text-gray-400">{ta('leads.read', lang)}</span>
                       ) : (
                         <span className="inline-block bg-brand-magenta text-white text-xs px-2 py-0.5 rounded">
-                          New
+                          {ta('leads.new', lang)}
                         </span>
                       )}
                     </td>
@@ -183,14 +186,14 @@ export default function LeadsPage() {
                           onClick={() => markAsRead(lead.id)}
                           className="text-brand-purple hover:text-brand-magenta text-xs mr-3"
                         >
-                          Mark Read
+                          {ta('leads.markRead', lang)}
                         </button>
                       )}
                       <button
                         onClick={() => handleDelete(lead.id)}
                         className="text-red-500 hover:text-red-700 text-xs"
                       >
-                        Delete
+                        {ta('common.delete', lang)}
                       </button>
                     </td>
                   </tr>
@@ -200,18 +203,18 @@ export default function LeadsPage() {
                         <div className="space-y-2 text-sm">
                           {lead.phone && (
                             <div>
-                              <span className="text-xs text-gray-400">Phone:</span>{' '}
+                              <span className="text-xs text-gray-400">{ta('leads.phone', lang)}</span>{' '}
                               <span className="text-gray-700">{lead.phone}</span>
                             </div>
                           )}
                           {lead.product_name_en && (
                             <div>
-                              <span className="text-xs text-gray-400">Product:</span>{' '}
+                              <span className="text-xs text-gray-400">{ta('leads.product', lang)}</span>{' '}
                               <span className="text-gray-700">{lead.product_name_en}</span>
                             </div>
                           )}
                           <div>
-                            <span className="text-xs text-gray-400">Message:</span>
+                            <span className="text-xs text-gray-400">{ta('leads.message', lang)}</span>
                             <p className="mt-1 text-gray-700 whitespace-pre-wrap">{lead.message}</p>
                           </div>
                         </div>

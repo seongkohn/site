@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import type { HeroSlide } from '@/lib/types';
+import { useLanguage } from '@/components/LanguageProvider';
+import { ta } from '@/lib/i18n-admin';
+import { SortableList, SortableTableRow, DragHandle } from '@/components/admin/SortableList';
 
 const emptyForm = {
   title_en: '',
@@ -18,6 +21,7 @@ const emptyForm = {
 };
 
 export default function HeroSlidesPage() {
+  const { lang } = useLanguage();
   const [slides, setSlides] = useState<HeroSlide[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyForm);
@@ -53,10 +57,10 @@ export default function HeroSlidesPage() {
         const data = await res.json();
         setForm((prev) => ({ ...prev, image: data.url }));
       } else {
-        alert('Upload failed');
+        alert(ta('common.uploadFailed', lang));
       }
     } catch {
-      alert('Upload failed');
+      alert(ta('common.uploadFailed', lang));
     }
     setUploading(false);
   }
@@ -97,7 +101,7 @@ export default function HeroSlidesPage() {
       setEditingId(null);
       await fetchSlides();
     } catch {
-      alert('Failed to save slide');
+      alert(ta('heroSlides.saveFailed', lang));
     }
     setSaving(false);
   }
@@ -124,12 +128,12 @@ export default function HeroSlidesPage() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('Delete this slide?')) return;
+    if (!confirm(ta('heroSlides.confirmDelete', lang))) return;
     try {
       await fetch(`/api/hero-slides/${id}`, { method: 'DELETE' });
       await fetchSlides();
     } catch {
-      alert('Failed to delete slide');
+      alert(ta('heroSlides.deleteFailed', lang));
     }
   }
 
@@ -151,47 +155,48 @@ export default function HeroSlidesPage() {
   }
 
   async function handleBulkDelete() {
-    if (!confirm(`Delete ${selected.size} slide(s)?`)) return;
+    if (!confirm(`${selected.size} ${ta('heroSlides.confirmBulkDelete', lang)}`)) return;
     setDeleting(true);
     try {
       await Promise.all([...selected].map((id) => fetch(`/api/hero-slides/${id}`, { method: 'DELETE' })));
       setSelected(new Set());
       await fetchSlides();
     } catch {
-      alert('Failed to delete some slides');
+      alert(ta('heroSlides.bulkDeleteFailed', lang));
     }
     setDeleting(false);
   }
 
-  async function handleMove(id: number, direction: 'up' | 'down') {
+  async function handleReorder(orderedIds: number[]) {
+    const prev = slides;
+    setSlides(orderedIds.map((id) => slides.find((s) => s.id === id)!));
     try {
-      await fetch('/api/reorder', {
+      await fetch('/api/reorder-batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table: 'hero_slides', id, direction }),
+        body: JSON.stringify({ table: 'hero_slides', ids: orderedIds }),
       });
-      await fetchSlides();
     } catch {
-      // error
+      setSlides(prev);
     }
   }
 
   if (loading) {
-    return <div className="text-sm text-gray-500">Loading hero slides...</div>;
+    return <div className="text-sm text-gray-500">{ta('heroSlides.loadingSlides', lang)}</div>;
   }
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-brand-navy mb-4">Hero Slides</h1>
+      <h1 className="text-xl font-bold text-brand-navy mb-4">{ta('heroSlides.title', lang)}</h1>
 
       {/* Add/Edit form */}
       <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
         <p className="text-xs font-medium text-gray-500 mb-3">
-          {editingId ? 'Edit Slide' : 'Add Slide'}
+          {editingId ? ta('heroSlides.editSlide', lang) : ta('heroSlides.addSlide', lang)}
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Title EN *</label>
+            <label className="block text-xs text-gray-400 mb-1">{ta('heroSlides.titleEn', lang)}</label>
             <input
               type="text"
               required
@@ -201,7 +206,7 @@ export default function HeroSlidesPage() {
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Title KO</label>
+            <label className="block text-xs text-gray-400 mb-1">{ta('heroSlides.titleKo', lang)}</label>
             <input
               type="text"
               value={form.title_ko}
@@ -210,7 +215,7 @@ export default function HeroSlidesPage() {
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Subtitle EN</label>
+            <label className="block text-xs text-gray-400 mb-1">{ta('heroSlides.subtitleEn', lang)}</label>
             <input
               type="text"
               value={form.subtitle_en}
@@ -219,7 +224,7 @@ export default function HeroSlidesPage() {
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Subtitle KO</label>
+            <label className="block text-xs text-gray-400 mb-1">{ta('heroSlides.subtitleKo', lang)}</label>
             <input
               type="text"
               value={form.subtitle_ko}
@@ -230,7 +235,7 @@ export default function HeroSlidesPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Image</label>
+            <label className="block text-xs text-gray-400 mb-1">{ta('heroSlides.image', lang)}</label>
             <div className="flex items-center gap-2">
               <input
                 type="file"
@@ -239,7 +244,7 @@ export default function HeroSlidesPage() {
                 className="text-sm text-gray-500"
                 disabled={uploading}
               />
-              {uploading && <span className="text-xs text-gray-400">Uploading...</span>}
+              {uploading && <span className="text-xs text-gray-400">{ta('common.uploading', lang)}</span>}
             </div>
             {form.image && (
               <div className="mt-2 flex items-center gap-2">
@@ -249,13 +254,13 @@ export default function HeroSlidesPage() {
                   onClick={() => setForm({ ...form, image: '' })}
                   className="text-xs text-red-500 hover:text-red-700"
                 >
-                  Remove
+                  {ta('common.remove', lang)}
                 </button>
               </div>
             )}
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Link URL (optional)</label>
+            <label className="block text-xs text-gray-400 mb-1">{ta('heroSlides.linkUrl', lang)}</label>
             <input
               type="text"
               value={form.link_url}
@@ -267,36 +272,36 @@ export default function HeroSlidesPage() {
         </div>
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Text Color</label>
+            <label className="block text-xs text-gray-400 mb-1">{ta('heroSlides.textColor', lang)}</label>
             <select
               value={form.text_color}
               onChange={(e) => setForm({ ...form, text_color: e.target.value })}
               className="border border-gray-200 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
             >
-              <option value="light">Light (white text)</option>
-              <option value="dark">Dark (black text)</option>
+              <option value="light">{ta('heroSlides.lightText', lang)}</option>
+              <option value="dark">{ta('heroSlides.darkText', lang)}</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Text Alignment</label>
+            <label className="block text-xs text-gray-400 mb-1">{ta('heroSlides.textAlignment', lang)}</label>
             <select
               value={form.text_align}
               onChange={(e) => setForm({ ...form, text_align: e.target.value })}
               className="border border-gray-200 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
             >
-              <option value="left">Left</option>
-              <option value="right">Right</option>
+              <option value="left">{ta('heroSlides.left', lang)}</option>
+              <option value="right">{ta('heroSlides.right', lang)}</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Active</label>
+            <label className="block text-xs text-gray-400 mb-1">{ta('heroSlides.active', lang)}</label>
             <select
               value={form.is_active}
               onChange={(e) => setForm({ ...form, is_active: parseInt(e.target.value) })}
               className="border border-gray-200 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
             >
-              <option value={1}>Yes</option>
-              <option value={0}>No</option>
+              <option value={1}>{ta('common.yes', lang)}</option>
+              <option value={0}>{ta('common.no', lang)}</option>
             </select>
           </div>
           <button
@@ -304,7 +309,7 @@ export default function HeroSlidesPage() {
             disabled={saving}
             className="bg-brand-magenta text-white text-sm px-4 py-1.5 rounded hover:opacity-90 transition disabled:opacity-50"
           >
-            {saving ? 'Saving...' : editingId ? 'Update' : 'Add'}
+            {saving ? ta('common.saving', lang) : editingId ? ta('common.update', lang) : ta('common.add', lang)}
           </button>
           {editingId && (
             <button
@@ -312,7 +317,7 @@ export default function HeroSlidesPage() {
               onClick={cancelEdit}
               className="text-sm text-gray-500 hover:text-brand-navy"
             >
-              Cancel
+              {ta('common.cancel', lang)}
             </button>
           )}
         </div>
@@ -326,7 +331,7 @@ export default function HeroSlidesPage() {
             disabled={deleting}
             className="bg-red-500 text-white text-sm px-4 py-1.5 rounded hover:bg-red-600 transition disabled:opacity-50"
           >
-            {deleting ? 'Deleting...' : `Delete Selected (${selected.size})`}
+            {deleting ? ta('common.deleting', lang) : `${ta('common.delete', lang)} (${selected.size})`}
           </button>
         </div>
       )}
@@ -344,86 +349,73 @@ export default function HeroSlidesPage() {
                   className="rounded border-gray-300"
                 />
               </th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Image</th>
+              <th className="w-10"></th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('heroSlides.image', lang)}</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Title</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Style</th>
-              <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase">Active</th>
-              <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase">Order</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('heroSlides.style', lang)}</th>
+              <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('heroSlides.active', lang)}</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('common.actions', lang)}</th>
             </tr>
           </thead>
-          <tbody>
-            {slides.map((slide) => (
-              <tr key={slide.id} className="border-b border-gray-100 hover:bg-gray-50">
-                <td className="px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(slide.id)}
-                    onChange={() => toggleSelect(slide.id)}
-                    className="rounded border-gray-300"
-                  />
-                </td>
-                <td className="px-4 py-3">
-                  {slide.image ? (
-                    <Image src={slide.image} alt="" width={80} height={40} className="rounded border object-cover" />
-                  ) : (
-                    <span className="text-gray-300 text-xs">No image</span>
+          <SortableList items={slides} onReorder={handleReorder}>
+            <tbody>
+              {slides.map((slide) => (
+                <SortableTableRow key={slide.id} id={slide.id}>
+                  {({ listeners, attributes }) => (
+                    <>
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(slide.id)}
+                          onChange={() => toggleSelect(slide.id)}
+                          className="rounded border-gray-300"
+                        />
+                      </td>
+                      <td className="px-2 py-3 text-center">
+                        <DragHandle listeners={listeners} attributes={attributes} />
+                      </td>
+                      <td className="px-4 py-3">
+                        {slide.image ? (
+                          <Image src={slide.image} alt="" width={80} height={40} className="rounded border object-cover" />
+                        ) : (
+                          <span className="text-gray-300 text-xs">{ta('heroSlides.noImage', lang)}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-gray-800">{slide.title_en}</div>
+                        <div className="text-gray-500 text-xs">{slide.title_ko}</div>
+                        {slide.subtitle_en && (
+                          <div className="text-gray-400 text-xs mt-0.5">{slide.subtitle_en}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-500">
+                        <span className="inline-block mr-2">{slide.text_color === 'light' ? ta('heroSlides.light', lang) : ta('heroSlides.dark', lang)}</span>
+                        <span>{slide.text_align === 'left' ? ta('heroSlides.left', lang) : ta('heroSlides.right', lang)}</span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-block w-2 h-2 rounded-full ${slide.is_active ? 'bg-green-500' : 'bg-gray-300'}`} />
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button onClick={() => startEdit(slide)} className="text-brand-purple hover:text-brand-magenta text-xs mr-3">
+                          {ta('common.edit', lang)}
+                        </button>
+                        <button onClick={() => handleDelete(slide.id)} className="text-red-500 hover:text-red-700 text-xs">
+                          {ta('common.delete', lang)}
+                        </button>
+                      </td>
+                    </>
                   )}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="font-medium text-gray-800">{slide.title_en}</div>
-                  <div className="text-gray-500 text-xs">{slide.title_ko}</div>
-                  {slide.subtitle_en && (
-                    <div className="text-gray-400 text-xs mt-0.5">{slide.subtitle_en}</div>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-xs text-gray-500">
-                  <span className="inline-block mr-2">{slide.text_color === 'light' ? 'Light' : 'Dark'}</span>
-                  <span>{slide.text_align === 'left' ? 'Left' : 'Right'}</span>
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <span className={`inline-block w-2 h-2 rounded-full ${slide.is_active ? 'bg-green-500' : 'bg-gray-300'}`} />
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    <button
-                      onClick={() => handleMove(slide.id, 'up')}
-                      className="p-1 text-gray-400 hover:text-brand-navy rounded hover:bg-gray-100"
-                      title="Move up"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleMove(slide.id, 'down')}
-                      className="p-1 text-gray-400 hover:text-brand-navy rounded hover:bg-gray-100"
-                      title="Move down"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button onClick={() => startEdit(slide)} className="text-brand-purple hover:text-brand-magenta text-xs mr-3">
-                    Edit
-                  </button>
-                  <button onClick={() => handleDelete(slide.id)} className="text-red-500 hover:text-red-700 text-xs">
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {slides.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">
-                  No hero slides yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
+                </SortableTableRow>
+              ))}
+              {slides.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">
+                    {ta('heroSlides.noSlides', lang)}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </SortableList>
         </table>
       </div>
     </div>

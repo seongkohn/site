@@ -3,11 +3,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import type { Product } from '@/lib/types';
+import { useLanguage } from '@/components/LanguageProvider';
+import { ta } from '@/lib/i18n-admin';
+import { SortableList, SortableItem, DragHandle } from '@/components/admin/SortableList';
 
 export default function FeaturedProductsPage() {
+  const { lang } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [reordering, setReordering] = useState<number | null>(null);
   const [toggling, setToggling] = useState<number | null>(null);
   const [search, setSearch] = useState('');
 
@@ -45,19 +48,26 @@ export default function FeaturedProductsPage() {
       .slice(0, 20);
   }, [products, search]);
 
-  async function handleReorder(productId: number, direction: 'up' | 'down') {
-    setReordering(productId);
+  async function handleReorder(orderedIds: number[]) {
+    const prev = products;
+    // Optimistically update featured_order
+    setProducts((prods) => {
+      const updated = [...prods];
+      for (let i = 0; i < orderedIds.length; i++) {
+        const p = updated.find((prod) => prod.id === orderedIds[i]);
+        if (p) p.featured_order = i;
+      }
+      return updated;
+    });
     try {
-      await fetch('/api/reorder', {
+      await fetch('/api/reorder-batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table: 'products', id: productId, direction }),
+        body: JSON.stringify({ table: 'products', ids: orderedIds }),
       });
-      await fetchProducts();
     } catch {
-      alert('Failed to reorder');
+      setProducts(prev);
     }
-    setReordering(null);
   }
 
   async function toggleFeatured(productId: number, makeFeatured: boolean) {
@@ -70,103 +80,88 @@ export default function FeaturedProductsPage() {
       });
       await fetchProducts();
     } catch {
-      alert('Failed to update');
+      alert(ta('featured.updateFailed', lang));
     }
     setToggling(null);
     setSearch('');
   }
 
   if (loading) {
-    return <div className="text-sm text-gray-500">Loading...</div>;
+    return <div className="text-sm text-gray-500">{ta('common.loading', lang)}</div>;
   }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold text-brand-navy">Featured Products</h1>
+        <h1 className="text-xl font-bold text-brand-navy">{ta('featured.title', lang)}</h1>
         <Link href="/admin/products" className="text-sm text-gray-500 hover:text-brand-navy">
-          All Products
+          {ta('featured.allProducts', lang)}
         </Link>
       </div>
 
       <p className="text-sm text-gray-500 mb-4">
-        These products appear on the homepage. Drag to reorder, or add/remove products below.
+        {ta('featured.description', lang)}
       </p>
 
       {/* Current featured products */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-6">
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
           <h2 className="text-xs font-medium text-gray-500 uppercase">
-            Featured ({featured.length})
+            {`${ta('featured.featuredCount', lang)} (${featured.length})`}
           </h2>
         </div>
         {featured.length === 0 ? (
           <div className="px-4 py-8 text-center text-gray-400 text-sm">
-            No featured products yet. Search below to add some.
+            {ta('featured.noFeatured', lang)}
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
-            {featured.map((product, i) => (
-              <div key={product.id} className="flex items-center justify-between px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-400 w-6 text-right font-mono">{i + 1}</span>
-                  {product.image && (
-                    <img src={product.image} alt="" className="w-10 h-10 object-contain border border-gray-100 rounded" />
-                  )}
-                  <div>
-                    <span className="text-sm font-medium text-brand-navy">{product.name_en}</span>
-                    <div className="text-xs text-gray-400">
-                      {product.brand_name_en && <span>{product.brand_name_en}</span>}
-                      {product.brand_name_en && product.sku && <span> &middot; </span>}
-                      <span className="font-mono">{product.sku}</span>
+          <SortableList items={featured} onReorder={handleReorder}>
+            <div className="divide-y divide-gray-100">
+              {featured.map((product, i) => (
+                <SortableItem key={product.id} id={product.id}>
+                  {({ listeners, attributes }) => (
+                    <div className="flex items-center justify-between px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <DragHandle listeners={listeners} attributes={attributes} />
+                        <span className="text-sm text-gray-400 w-6 text-right font-mono">{i + 1}</span>
+                        {product.image && (
+                          <img src={product.image} alt="" className="w-10 h-10 object-contain border border-gray-100 rounded" />
+                        )}
+                        <div>
+                          <span className="text-sm font-medium text-brand-navy">{product.name_en}</span>
+                          <div className="text-xs text-gray-400">
+                            {product.brand_name_en && <span>{product.brand_name_en}</span>}
+                            {product.brand_name_en && product.sku && <span> &middot; </span>}
+                            <span className="font-mono">{product.sku}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => toggleFeatured(product.id, false)}
+                        disabled={toggling !== null}
+                        className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 disabled:opacity-50"
+                      >
+                        {ta('common.remove', lang)}
+                      </button>
                     </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-0.5">
-                    <button
-                      type="button"
-                      onClick={() => handleReorder(product.id, 'up')}
-                      disabled={i === 0 || reordering !== null}
-                      className="p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 rounded hover:bg-gray-100"
-                      title="Move up"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" /></svg>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleReorder(product.id, 'down')}
-                      disabled={i === featured.length - 1 || reordering !== null}
-                      className="p-1.5 text-gray-400 hover:text-gray-600 disabled:opacity-30 rounded hover:bg-gray-100"
-                      title="Move down"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => toggleFeatured(product.id, false)}
-                    disabled={toggling !== null}
-                    className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 disabled:opacity-50"
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+                  )}
+                </SortableItem>
+              ))}
+            </div>
+          </SortableList>
         )}
       </div>
 
       {/* Add products */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-          <h2 className="text-xs font-medium text-gray-500 uppercase mb-2">Add to Featured</h2>
+          <h2 className="text-xs font-medium text-gray-500 uppercase mb-2">{ta('featured.addToFeatured', lang)}</h2>
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search products by name, SKU, or brand..."
+            placeholder={ta('featured.searchProducts', lang)}
             className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
           />
         </div>
@@ -174,7 +169,7 @@ export default function FeaturedProductsPage() {
           <div className="divide-y divide-gray-100">
             {nonFeatured.length === 0 ? (
               <div className="px-4 py-4 text-center text-gray-400 text-sm">
-                No matching non-featured products
+                {ta('featured.noMatching', lang)}
               </div>
             ) : (
               nonFeatured.map((product) => (
@@ -194,7 +189,7 @@ export default function FeaturedProductsPage() {
                     disabled={toggling !== null}
                     className="text-xs text-brand-purple hover:text-brand-magenta px-2 py-1 rounded hover:bg-brand-pale disabled:opacity-50"
                   >
-                    + Add
+                    {ta('featured.addBtn', lang)}
                   </button>
                 </div>
               ))

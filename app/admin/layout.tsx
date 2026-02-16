@@ -4,14 +4,18 @@ import { useState, useEffect, useCallback, ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Turnstile from '@/components/Turnstile';
+import { useLanguage } from '@/components/LanguageProvider';
+import { ta } from '@/lib/i18n-admin';
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
+  const { lang } = useLanguage();
   const [user, setUser] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
   const [setupForm, setSetupForm] = useState({ username: '', password: '', confirmPassword: '' });
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
-  const [error, setError] = useState('');
+  const [errorKey, setErrorKey] = useState<string | null>(null);
+  const [errorText, setErrorText] = useState('');
   const [turnstileToken, setTurnstileToken] = useState('');
   const handleTurnstile = useCallback((token: string) => setTurnstileToken(token), []);
   const pathname = usePathname();
@@ -46,18 +50,19 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   async function handleSetup(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
+    setErrorKey(null);
+    setErrorText('');
 
     if (setupForm.password !== setupForm.confirmPassword) {
-      setError('Passwords do not match');
+      setErrorKey('auth.passwordsNoMatch');
       return;
     }
     if (setupForm.password.length < 8) {
-      setError('Password must be at least 8 characters');
+      setErrorKey('auth.passwordTooShort');
       return;
     }
     if (setupForm.username.length < 3) {
-      setError('Username must be at least 3 characters');
+      setErrorKey('auth.usernameTooShort');
       return;
     }
 
@@ -73,16 +78,22 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         setNeedsSetup(false);
       } else {
         const data = await res.json();
-        setError(data.error || 'Setup failed');
+        if (data.error) {
+          setErrorText(data.error);
+          setErrorKey(null);
+        } else {
+          setErrorKey('auth.setupFailed');
+        }
       }
     } catch {
-      setError('Setup failed');
+      setErrorKey('auth.setupFailed');
     }
   }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
+    setErrorKey(null);
+    setErrorText('');
     try {
       const res = await fetch('/api/auth', {
         method: 'POST',
@@ -93,10 +104,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         const data = await res.json();
         setUser(data.username);
       } else {
-        setError('Invalid username or password');
+        setErrorKey('auth.invalidCredentials');
       }
     } catch {
-      setError('Login failed');
+      setErrorKey('auth.loginFailed');
     }
   }
 
@@ -108,7 +119,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-brand-pale">
-        <div className="text-brand-purple">Loading...</div>
+        <div className="text-brand-purple">{ta('common.loading', lang)}</div>
       </div>
     );
   }
@@ -117,26 +128,26 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-brand-pale">
         <form onSubmit={handleSetup} className="bg-white p-8 rounded-lg shadow-md w-full max-w-sm">
-          <h1 className="text-2xl font-bold text-brand-navy mb-2 text-center">Admin Setup</h1>
-          <p className="text-sm text-gray-500 mb-6 text-center">Create your admin account to get started.</p>
-          {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
+          <h1 className="text-2xl font-bold text-brand-navy mb-2 text-center">{ta('auth.adminSetup', lang)}</h1>
+          <p className="text-sm text-gray-500 mb-6 text-center">{ta('auth.setupDesc', lang)}</p>
+          {(errorKey || errorText) && <p className="text-red-600 text-sm mb-4">{errorKey ? ta(errorKey, lang) : errorText}</p>}
           <input
             type="text"
-            placeholder="Username"
+            placeholder={ta('auth.username', lang)}
             value={setupForm.username}
             onChange={(e) => setSetupForm({ ...setupForm, username: e.target.value })}
             className="w-full border border-gray-300 rounded px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-brand-purple"
           />
           <input
             type="password"
-            placeholder="Password (min 8 characters)"
+            placeholder={ta('auth.passwordPlaceholder', lang)}
             value={setupForm.password}
             onChange={(e) => setSetupForm({ ...setupForm, password: e.target.value })}
             className="w-full border border-gray-300 rounded px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-brand-purple"
           />
           <input
             type="password"
-            placeholder="Confirm Password"
+            placeholder={ta('auth.confirmPassword', lang)}
             value={setupForm.confirmPassword}
             onChange={(e) => setSetupForm({ ...setupForm, confirmPassword: e.target.value })}
             className="w-full border border-gray-300 rounded px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-brand-purple"
@@ -145,7 +156,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             type="submit"
             className="w-full bg-brand-magenta text-white py-2 rounded hover:opacity-90 transition"
           >
-            Create Account
+            {ta('auth.createAccount', lang)}
           </button>
         </form>
       </div>
@@ -156,18 +167,18 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-brand-pale">
         <form onSubmit={handleLogin} className="bg-white p-8 rounded-lg shadow-md w-full max-w-sm">
-          <h1 className="text-2xl font-bold text-brand-navy mb-6 text-center">Admin Login</h1>
-          {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
+          <h1 className="text-2xl font-bold text-brand-navy mb-6 text-center">{ta('auth.adminLogin', lang)}</h1>
+          {(errorKey || errorText) && <p className="text-red-600 text-sm mb-4">{errorKey ? ta(errorKey, lang) : errorText}</p>}
           <input
             type="text"
-            placeholder="Username"
+            placeholder={ta('auth.username', lang)}
             value={loginForm.username}
             onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
             className="w-full border border-gray-300 rounded px-3 py-2 mb-3 focus:outline-none focus:ring-2 focus:ring-brand-purple"
           />
           <input
             type="password"
-            placeholder="Password"
+            placeholder={ta('auth.password', lang)}
             value={loginForm.password}
             onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
             className="w-full border border-gray-300 rounded px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-brand-purple"
@@ -178,7 +189,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             disabled={!turnstileToken}
             className="w-full bg-brand-magenta text-white py-2 rounded hover:opacity-90 transition disabled:opacity-50"
           >
-            Log In
+            {ta('auth.logIn', lang)}
           </button>
         </form>
       </div>
@@ -186,23 +197,23 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }
 
   const navItems = [
-    { href: '/admin', label: 'Dashboard' },
-    { href: '/admin/products', label: 'Products' },
-    { href: '/admin/categories', label: 'Categories' },
-    { href: '/admin/types', label: 'Types' },
-    { href: '/admin/brands', label: 'Brands' },
-    { href: '/admin/featured', label: 'Featured' },
-    { href: '/admin/hero-slides', label: 'Hero Slides' },
-    { href: '/admin/leads', label: 'Leads' },
-    { href: '/admin/settings', label: 'Settings' },
+    { href: '/admin', label: ta('sidebar.dashboard', lang) },
+    { href: '/admin/products', label: ta('sidebar.products', lang) },
+    { href: '/admin/categories', label: ta('sidebar.categories', lang) },
+    { href: '/admin/types', label: ta('sidebar.types', lang) },
+    { href: '/admin/brands', label: ta('sidebar.brands', lang) },
+    { href: '/admin/featured', label: ta('sidebar.featured', lang) },
+    { href: '/admin/hero-slides', label: ta('sidebar.heroSlides', lang) },
+    { href: '/admin/leads', label: ta('sidebar.leads', lang) },
+    { href: '/admin/settings', label: ta('sidebar.settings', lang) },
   ];
 
   return (
     <div className="min-h-screen flex bg-brand-pale">
       <aside className="w-56 bg-brand-navy text-white flex-shrink-0">
         <div className="p-4 border-b border-brand-purple">
-          <Link href="/" className="text-sm text-gray-300 hover:text-white">&larr; Back to Site</Link>
-          <h2 className="text-lg font-bold mt-1">Admin Panel</h2>
+          <Link href="/" className="text-sm text-gray-300 hover:text-white">{ta('sidebar.backToSite', lang)}</Link>
+          <h2 className="text-lg font-bold mt-1">{ta('sidebar.adminPanel', lang)}</h2>
         </div>
         <nav className="p-2">
           {navItems.map((item) => (
@@ -220,12 +231,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="p-4 mt-auto border-t border-brand-purple">
-          <p className="text-xs text-gray-400 mb-2">Logged in as {user}</p>
+          <p className="text-xs text-gray-400 mb-2">{ta('sidebar.loggedInAs', lang)} {user}</p>
           <button
             onClick={handleLogout}
             className="text-sm text-gray-300 hover:text-white"
           >
-            Log Out
+            {ta('sidebar.logOut', lang)}
           </button>
         </div>
       </aside>

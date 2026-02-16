@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Category, Type, Brand, Product } from '@/lib/types';
 import RichTextEditor from '@/components/RichTextEditor';
+import { useLanguage } from '@/components/LanguageProvider';
+import { ta } from '@/lib/i18n-admin';
 
 interface VariantRow {
   name_en: string;
@@ -77,6 +79,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
   const { id } = use(params);
   const isNew = id === 'new';
   const router = useRouter();
+  const { lang } = useLanguage();
 
   const [form, setForm] = useState<FormData>(emptyForm);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -86,7 +89,8 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
-  const [error, setError] = useState('');
+  const [errorKey, setErrorKey] = useState<string | null>(null);
+  const [errorText, setErrorText] = useState('');
   const [thumbnailIndex, setThumbnailIndex] = useState(0);
   const [relatedSearch, setRelatedSearch] = useState('');
 
@@ -157,7 +161,10 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
           });
         }
       })
-      .catch(() => setError('Failed to load data'))
+      .catch(() => {
+        setErrorKey('productForm.loadFailed');
+        setErrorText('');
+      })
       .finally(() => setLoading(false));
   }, [id, isNew]);
 
@@ -181,7 +188,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error || 'Upload failed');
+        alert(err.error || ta('common.uploadFailed', lang));
         return;
       }
       const data = await res.json();
@@ -190,7 +197,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
         images: [...prev.images, { url: data.url, type: 'image', alt_en: '', alt_ko: '', variant_index: null }],
       }));
     } catch {
-      alert('Upload failed');
+      alert(ta('common.uploadFailed', lang));
     } finally {
       setUploadingGallery(false);
       e.target.value = '';
@@ -251,7 +258,8 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
+    setErrorKey(null);
+    setErrorText('');
     setSaving(true);
 
     try {
@@ -293,13 +301,20 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
 
       if (!res.ok) {
         const err = await res.json();
-        setError(err.error || 'Failed to save product');
+        if (err.error) {
+          setErrorText(err.error);
+          setErrorKey(null);
+        } else {
+          setErrorKey('productForm.saveFailed');
+          setErrorText('');
+        }
         return;
       }
 
       router.push('/admin/products');
     } catch {
-      setError('Failed to save product');
+      setErrorKey('productForm.saveFailed');
+      setErrorText('');
     } finally {
       setSaving(false);
     }
@@ -341,7 +356,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
   }
 
   if (loading) {
-    return <div className="text-sm text-gray-500">Loading...</div>;
+    return <div className="text-sm text-gray-500">{ta('common.loading', lang)}</div>;
   }
 
   const otherProducts = allProducts.filter((p) => String(p.id) !== id);
@@ -350,16 +365,16 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
     <div>
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold text-brand-navy">
-          {isNew ? 'Add Product' : 'Edit Product'}
+          {isNew ? ta('productForm.addProduct', lang) : ta('productForm.editProduct', lang)}
         </h1>
         <Link href="/admin/products" className="text-sm text-gray-500 hover:text-brand-navy">
-          Cancel
+          {ta('common.cancel', lang)}
         </Link>
       </div>
 
-      {error && (
+      {(errorKey || errorText) && (
         <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-2 rounded mb-4">
-          {error}
+          {errorKey ? ta(errorKey, lang) : errorText}
         </div>
       )}
 
@@ -367,7 +382,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
         {/* Names */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Name (English)</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.nameEn', lang)}</label>
             <input
               type="text"
               required
@@ -385,7 +400,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Name (Korean)</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.nameKo', lang)}</label>
             <input
               type="text"
               value={form.name_ko}
@@ -397,7 +412,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
 
         {/* Slug */}
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Slug</label>
+          <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.slug', lang)}</label>
           <input
             type="text"
             value={form.slug}
@@ -411,26 +426,26 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
         {/* Selects */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Brand</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.brand', lang)}</label>
             <select
               value={form.brand_id}
               onChange={(e) => setForm({ ...form, brand_id: e.target.value })}
               className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
             >
-              <option value="">-- None --</option>
+              <option value="">{ta('common.none', lang)}</option>
               {brands.map((m) => (
                 <option key={m.id} value={m.id}>{m.name_en}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Category</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.category', lang)}</label>
             <select
               value={form.category_id}
               onChange={(e) => setForm({ ...form, category_id: e.target.value })}
               className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
             >
-              <option value="">-- None --</option>
+              <option value="">{ta('common.none', lang)}</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.parent_id ? '\u00A0\u00A0\u00A0' : ''}{c.name_en}
@@ -439,13 +454,13 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.type', lang)}</label>
             <select
               value={form.type_id}
               onChange={(e) => setForm({ ...form, type_id: e.target.value })}
               className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
             >
-              <option value="">-- None --</option>
+              <option value="">{ta('common.none', lang)}</option>
               {types.map((t) => (
                 <option key={t.id} value={t.id}>{t.name_en}</option>
               ))}
@@ -455,7 +470,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
 
         {/* SKU */}
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">SKU</label>
+          <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.sku', lang)}</label>
           <input
             type="text"
             required
@@ -468,25 +483,25 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
         {/* Variants */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="block text-xs font-medium text-gray-500">Variants</label>
+            <label className="block text-xs font-medium text-gray-500">{ta('productForm.variants', lang)}</label>
             <button
               type="button"
               onClick={addVariant}
               className="text-xs text-brand-purple hover:text-brand-magenta font-medium"
             >
-              + Add Variant
+              {ta('productForm.addVariant', lang)}
             </button>
           </div>
           {form.variants.length === 0 ? (
-            <p className="text-xs text-gray-400">No variants. Use variants for different configurations/models with separate SKUs.</p>
+            <p className="text-xs text-gray-400">{ta('productForm.noVariants', lang)}</p>
           ) : (
             <div className="border border-gray-200 rounded overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Name (EN)</th>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Name (KO)</th>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">SKU</th>
+                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">{ta('productForm.nameEn', lang)}</th>
+                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">{ta('productForm.nameKo', lang)}</th>
+                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">{ta('productForm.sku', lang)}</th>
                     <th className="w-8"></th>
                   </tr>
                 </thead>
@@ -525,7 +540,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
                           type="button"
                           onClick={() => removeVariant(i)}
                           className="text-red-400 hover:text-red-600"
-                          title="Remove"
+                          title={ta('common.remove', lang)}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -543,7 +558,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
         {/* Descriptions */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Description (English)</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.descriptionEn', lang)}</label>
             <textarea
               rows={4}
               value={form.description_en}
@@ -552,7 +567,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Description (Korean)</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.descriptionKo', lang)}</label>
             <textarea
               rows={4}
               value={form.description_ko}
@@ -565,7 +580,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
         {/* Features */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Features (English, one per line)</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.featuresEn', lang)}</label>
             <textarea
               rows={4}
               value={form.features_en}
@@ -574,7 +589,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Features (Korean, one per line)</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.featuresKo', lang)}</label>
             <textarea
               rows={4}
               value={form.features_ko}
@@ -587,17 +602,17 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
         {/* Gallery Images */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="block text-xs font-medium text-gray-500">Images &amp; Thumbnail</label>
+            <label className="block text-xs font-medium text-gray-500">{ta('productForm.imagesThumbnail', lang)}</label>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={addVideoToGallery}
                 className="text-xs text-brand-purple hover:text-brand-magenta font-medium"
               >
-                + Add Video URL
+                {ta('productForm.addVideoUrl', lang)}
               </button>
               <label className="text-xs text-brand-purple hover:text-brand-magenta font-medium cursor-pointer">
-                + Upload Image
+                {ta('productForm.uploadImage', lang)}
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp,image/svg+xml,image/gif,image/tiff,image/bmp"
@@ -607,9 +622,9 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
               </label>
             </div>
           </div>
-          {uploadingGallery && <p className="text-xs text-gray-400 mb-2">Uploading...</p>}
+          {uploadingGallery && <p className="text-xs text-gray-400 mb-2">{ta('common.uploading', lang)}</p>}
           {form.images.length === 0 ? (
-            <p className="text-xs text-gray-400">No images yet. Upload at least one image — the first will be used as the thumbnail.</p>
+            <p className="text-xs text-gray-400">{ta('productForm.noImages', lang)}</p>
           ) : (
             <div className="space-y-2">
               {form.images.map((img, i) => (
@@ -623,14 +638,14 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
                           type="button"
                           onClick={() => setThumbnailIndex(i)}
                           className={`text-xs px-1.5 py-0.5 rounded ${thumbnailIndex === i ? 'bg-brand-magenta text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-                          title="Use as thumbnail"
+                          title={ta('productForm.thumb', lang)}
                         >
-                          {thumbnailIndex === i ? 'Thumb' : 'Set'}
+                          {thumbnailIndex === i ? ta('productForm.thumb', lang) : ta('productForm.set', lang)}
                         </button>
                       </>
                     ) : (
                       <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs">
-                        {img.type === 'video' ? 'Video' : 'N/A'}
+                        {img.type === 'video' ? ta('productForm.video', lang) : 'N/A'}
                       </div>
                     )}
                   </div>
@@ -640,7 +655,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
                         type="text"
                         value={img.url}
                         onChange={(e) => updateGalleryImage(i, 'url', e.target.value)}
-                        placeholder="Video embed URL (YouTube/Vimeo)"
+                        placeholder={ta('productForm.videoEmbedUrl', lang)}
                         className="w-full border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
                       />
                     )}
@@ -649,14 +664,14 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
                         type="text"
                         value={img.alt_en}
                         onChange={(e) => updateGalleryImage(i, 'alt_en', e.target.value)}
-                        placeholder="Alt text (EN)"
+                        placeholder={ta('productForm.altTextEn', lang)}
                         className="border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
                       />
                       <input
                         type="text"
                         value={img.alt_ko}
                         onChange={(e) => updateGalleryImage(i, 'alt_ko', e.target.value)}
-                        placeholder="Alt text (KO)"
+                        placeholder={ta('productForm.altTextKo', lang)}
                         className="border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
                       />
                     </div>
@@ -666,13 +681,13 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
                         onChange={(e) => updateGalleryImage(i, 'variant_index', e.target.value === '' ? null : parseInt(e.target.value))}
                         className="border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
                       >
-                        <option value="">No linked variant</option>
+                        <option value="">{ta('productForm.noLinkedVariant', lang)}</option>
                         {form.variants.map((v, vi) => (
                           <option key={vi} value={vi}>{v.name_en || `Variant ${vi + 1}`} ({v.sku})</option>
                         ))}
                       </select>
                       <span className="text-xs text-gray-400">
-                        {img.type === 'image' ? 'Image' : 'Video'}
+                        {img.type === 'image' ? ta('productForm.image', lang) : ta('productForm.video', lang)}
                       </span>
                     </div>
                   </div>
@@ -683,7 +698,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
                     <button type="button" onClick={() => moveGalleryImage(i, 1)} disabled={i === form.images.length - 1} className="text-gray-400 hover:text-gray-600 disabled:opacity-30" title="Move down">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
                     </button>
-                    <button type="button" onClick={() => removeGalleryImage(i)} className="text-red-400 hover:text-red-600" title="Remove">
+                    <button type="button" onClick={() => removeGalleryImage(i)} className="text-red-400 hover:text-red-600" title={ta('common.remove', lang)}>
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                       </svg>
@@ -698,26 +713,26 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
         {/* Specifications */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="block text-xs font-medium text-gray-500">Specifications</label>
+            <label className="block text-xs font-medium text-gray-500">{ta('productForm.specifications', lang)}</label>
             <button
               type="button"
               onClick={addSpec}
               className="text-xs text-brand-purple hover:text-brand-magenta font-medium"
             >
-              + Add Spec
+              {ta('productForm.addSpec', lang)}
             </button>
           </div>
           {form.specs.length === 0 ? (
-            <p className="text-xs text-gray-400">No specifications added.</p>
+            <p className="text-xs text-gray-400">{ta('productForm.noSpecs', lang)}</p>
           ) : (
             <div className="border border-gray-200 rounded overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Key (EN)</th>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Key (KO)</th>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Value (EN)</th>
-                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">Value (KO)</th>
+                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">{ta('productForm.keyEn', lang)}</th>
+                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">{ta('productForm.keyKo', lang)}</th>
+                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">{ta('productForm.valueEn', lang)}</th>
+                    <th className="text-left px-3 py-2 text-xs font-medium text-gray-500">{ta('productForm.valueKo', lang)}</th>
                     <th className="w-8"></th>
                   </tr>
                 </thead>
@@ -765,7 +780,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
                           type="button"
                           onClick={() => removeSpec(i)}
                           className="text-red-400 hover:text-red-600"
-                          title="Remove"
+                          title={ta('common.remove', lang)}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -783,7 +798,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
         {/* Detailed Description */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Detailed Description (English)</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.detailEn', lang)}</label>
             <RichTextEditor
               value={form.detail_en}
               onChange={(value) => setForm((prev) => ({ ...prev, detail_en: value }))}
@@ -791,7 +806,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Detailed Description (Korean)</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{ta('productForm.detailKo', lang)}</label>
             <RichTextEditor
               value={form.detail_ko}
               onChange={(value) => setForm((prev) => ({ ...prev, detail_ko: value }))}
@@ -809,7 +824,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
               onChange={(e) => setForm({ ...form, is_published: e.target.checked })}
               className="rounded border-gray-300"
             />
-            Published
+            {ta('productForm.published', lang)}
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -818,14 +833,14 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
               onChange={(e) => setForm({ ...form, is_featured: e.target.checked })}
               className="rounded border-gray-300"
             />
-            Featured
+            {ta('productForm.featured', lang)}
           </label>
         </div>
 
         {/* Related Products */}
         {otherProducts.length > 0 && (
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-2">Related Products</label>
+            <label className="block text-xs font-medium text-gray-500 mb-2">{ta('productForm.relatedProducts', lang)}</label>
             {/* Selected related products as chips */}
             {form.related_ids.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-2">
@@ -858,7 +873,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
                 type="text"
                 value={relatedSearch}
                 onChange={(e) => setRelatedSearch(e.target.value)}
-                placeholder="Search products by name or SKU..."
+                placeholder={ta('productForm.searchRelated', lang)}
                 className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
               />
               {relatedSearch && (
@@ -886,7 +901,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
                     const q = relatedSearch.toLowerCase();
                     return p.name_en.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
                   }).length === 0 && (
-                    <div className="px-3 py-2 text-xs text-gray-400">No matching products</div>
+                    <div className="px-3 py-2 text-xs text-gray-400">{ta('productForm.noMatchingProducts', lang)}</div>
                   )}
                 </div>
               )}
@@ -901,10 +916,10 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
             disabled={saving}
             className="bg-brand-magenta text-white text-sm px-6 py-2 rounded hover:opacity-90 transition disabled:opacity-50"
           >
-            {saving ? 'Saving...' : isNew ? 'Create Product' : 'Save Changes'}
+            {saving ? ta('common.saving', lang) : isNew ? ta('productForm.createProduct', lang) : ta('productForm.saveChanges', lang)}
           </button>
           <Link href="/admin/products" className="text-sm text-gray-500 hover:text-brand-navy">
-            Cancel
+            {ta('common.cancel', lang)}
           </Link>
         </div>
       </form>

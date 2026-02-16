@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useLanguage } from '@/components/LanguageProvider';
+import { ta } from '@/lib/i18n-admin';
 
 interface SettingsForm {
   company_name_en: string;
@@ -31,10 +33,12 @@ const emptySettings: SettingsForm = {
 };
 
 export default function SettingsPage() {
+  const { lang } = useLanguage();
   const [settings, setSettings] = useState<SettingsForm>(emptySettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
+  const [messageKey, setMessageKey] = useState<string | null>(null);
+  const [messageText, setMessageText] = useState('');
 
   const [passwordForm, setPasswordForm] = useState({
     current_password: '',
@@ -42,8 +46,9 @@ export default function SettingsPage() {
     confirm_password: '',
   });
   const [pwSaving, setPwSaving] = useState(false);
-  const [pwMessage, setPwMessage] = useState('');
-  const [pwError, setPwError] = useState('');
+  const [pwMessageKey, setPwMessageKey] = useState<string | null>(null);
+  const [pwErrorKey, setPwErrorKey] = useState<string | null>(null);
+  const [pwErrorText, setPwErrorText] = useState('');
 
   useEffect(() => {
     fetch('/api/settings')
@@ -70,7 +75,8 @@ export default function SettingsPage() {
   async function handleSaveSettings(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    setMessage('');
+    setMessageKey(null);
+    setMessageText('');
 
     try {
       const res = await fetch('/api/settings', {
@@ -80,28 +86,29 @@ export default function SettingsPage() {
       });
 
       if (res.ok) {
-        setMessage('Settings saved successfully.');
+        setMessageKey('settings.savedSuccess');
       } else {
-        setMessage('Failed to save settings.');
+        setMessageKey('settings.saveFailed');
       }
     } catch {
-      setMessage('Failed to save settings.');
+      setMessageKey('settings.saveFailed');
     }
     setSaving(false);
   }
 
   async function handleChangePassword(e: React.FormEvent) {
     e.preventDefault();
-    setPwError('');
-    setPwMessage('');
+    setPwErrorKey(null);
+    setPwErrorText('');
+    setPwMessageKey(null);
 
     if (passwordForm.new_password !== passwordForm.confirm_password) {
-      setPwError('New passwords do not match.');
+      setPwErrorKey('settings.newPasswordsNoMatch');
       return;
     }
 
     if (passwordForm.new_password.length < 8) {
-      setPwError('New password must be at least 8 characters.');
+      setPwErrorKey('settings.newPasswordTooShort');
       return;
     }
 
@@ -120,40 +127,45 @@ export default function SettingsPage() {
       });
 
       if (res.ok) {
-        setPwMessage('Password updated successfully.');
+        setPwMessageKey('settings.passwordUpdated');
         setPasswordForm({ current_password: '', new_password: '', confirm_password: '' });
       } else {
         const data = await res.json();
-        setPwError(data.error || 'Failed to update password.');
+        if (data.error) {
+          setPwErrorText(data.error);
+          setPwErrorKey(null);
+        } else {
+          setPwErrorKey('settings.passwordChangeFailed');
+        }
       }
     } catch {
-      setPwError('Failed to update password.');
+      setPwErrorKey('settings.passwordChangeFailed');
     }
     setPwSaving(false);
   }
 
   if (loading) {
-    return <div className="text-sm text-gray-500">Loading settings...</div>;
+    return <div className="text-sm text-gray-500">{ta('settings.loadingSettings', lang)}</div>;
   }
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-brand-navy mb-6">Settings</h1>
+      <h1 className="text-xl font-bold text-brand-navy mb-6">{ta('settings.title', lang)}</h1>
 
       {/* Company Info */}
       <form onSubmit={handleSaveSettings} className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-        <h2 className="text-sm font-bold text-brand-navy mb-4">Company Information</h2>
+        <h2 className="text-sm font-bold text-brand-navy mb-4">{ta('settings.companyInfo', lang)}</h2>
 
-        {message && (
+        {(messageKey || messageText) && (
           <div className="text-sm text-green-600 bg-green-50 border border-green-200 px-3 py-2 rounded mb-4">
-            {message}
+            {messageKey ? ta(messageKey, lang) : messageText}
           </div>
         )}
 
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Company Name (English)</label>
+              <label className="block text-xs text-gray-400 mb-1">{ta('settings.companyNameEn', lang)}</label>
               <input
                 type="text"
                 value={settings.company_name_en}
@@ -162,7 +174,7 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Company Name (Korean)</label>
+              <label className="block text-xs text-gray-400 mb-1">{ta('settings.companyNameKo', lang)}</label>
               <input
                 type="text"
                 value={settings.company_name_ko}
@@ -173,7 +185,7 @@ export default function SettingsPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Address (English)</label>
+              <label className="block text-xs text-gray-400 mb-1">{ta('settings.addressEn', lang)}</label>
               <input
                 type="text"
                 value={settings.company_address_en}
@@ -182,7 +194,7 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Address (Korean)</label>
+              <label className="block text-xs text-gray-400 mb-1">{ta('settings.addressKo', lang)}</label>
               <input
                 type="text"
                 value={settings.company_address_ko}
@@ -193,7 +205,7 @@ export default function SettingsPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Phone</label>
+              <label className="block text-xs text-gray-400 mb-1">{ta('settings.phone', lang)}</label>
               <input
                 type="text"
                 value={settings.company_phone}
@@ -202,7 +214,7 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Fax</label>
+              <label className="block text-xs text-gray-400 mb-1">{ta('settings.fax', lang)}</label>
               <input
                 type="text"
                 value={settings.company_fax}
@@ -211,7 +223,7 @@ export default function SettingsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Email</label>
+              <label className="block text-xs text-gray-400 mb-1">{ta('settings.email', lang)}</label>
               <input
                 type="email"
                 value={settings.company_email}
@@ -228,18 +240,18 @@ export default function SettingsPage() {
             disabled={saving}
             className="bg-brand-magenta text-white text-sm px-6 py-2 rounded hover:opacity-90 transition disabled:opacity-50"
           >
-            {saving ? 'Saving...' : 'Save Settings'}
+            {saving ? ta('common.saving', lang) : ta('settings.saveSettings', lang)}
           </button>
         </div>
       </form>
 
       {/* Email Notifications */}
       <form onSubmit={handleSaveSettings} className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-        <h2 className="text-sm font-bold text-brand-navy mb-4">Email Notifications</h2>
+        <h2 className="text-sm font-bold text-brand-navy mb-4">{ta('settings.emailNotifications', lang)}</h2>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Notification Recipients</label>
+            <label className="block text-xs text-gray-400 mb-1">{ta('settings.notificationRecipients', lang)}</label>
             <input
               type="text"
               value={settings.contact_recipients}
@@ -247,10 +259,10 @@ export default function SettingsPage() {
               placeholder="email1@example.com, email2@example.com"
               className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
             />
-            <p className="text-xs text-gray-400 mt-1">Comma-separated list of email addresses that receive contact form notifications.</p>
+            <p className="text-xs text-gray-400 mt-1">{ta('settings.recipientsHelp', lang)}</p>
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">From Address</label>
+            <label className="block text-xs text-gray-400 mb-1">{ta('settings.fromAddress', lang)}</label>
             <input
               type="email"
               value={settings.smtp_from}
@@ -258,7 +270,7 @@ export default function SettingsPage() {
               placeholder="noreply@seongkohn.com"
               className="w-full max-w-md border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
             />
-            <p className="text-xs text-gray-400 mt-1">The sender address shown on outgoing notification emails.</p>
+            <p className="text-xs text-gray-400 mt-1">{ta('settings.fromAddressHelp', lang)}</p>
           </div>
         </div>
 
@@ -268,16 +280,16 @@ export default function SettingsPage() {
             disabled={saving}
             className="bg-brand-magenta text-white text-sm px-6 py-2 rounded hover:opacity-90 transition disabled:opacity-50"
           >
-            {saving ? 'Saving...' : 'Save'}
+            {saving ? ta('common.saving', lang) : ta('common.save', lang)}
           </button>
         </div>
       </form>
 
       {/* Lead Management */}
       <form onSubmit={handleSaveSettings} className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-        <h2 className="text-sm font-bold text-brand-navy mb-4">Lead Management</h2>
+        <h2 className="text-sm font-bold text-brand-navy mb-4">{ta('settings.leadManagement', lang)}</h2>
         <div className="max-w-xs">
-          <label className="block text-xs text-gray-400 mb-1">Auto-delete leads after (days)</label>
+          <label className="block text-xs text-gray-400 mb-1">{ta('settings.autoDeleteDays', lang)}</label>
           <input
             type="number"
             min="0"
@@ -285,7 +297,7 @@ export default function SettingsPage() {
             onChange={(e) => setSettings({ ...settings, leads_auto_delete_days: e.target.value })}
             className="w-full border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
           />
-          <p className="text-xs text-gray-400 mt-1">Set to 0 to disable auto-deletion.</p>
+          <p className="text-xs text-gray-400 mt-1">{ta('settings.autoDeleteHelp', lang)}</p>
         </div>
         <div className="mt-4">
           <button
@@ -293,14 +305,14 @@ export default function SettingsPage() {
             disabled={saving}
             className="bg-brand-magenta text-white text-sm px-6 py-2 rounded hover:opacity-90 transition disabled:opacity-50"
           >
-            {saving ? 'Saving...' : 'Save'}
+            {saving ? ta('common.saving', lang) : ta('common.save', lang)}
           </button>
         </div>
       </form>
 
       {/* Turnstile / Spam Protection */}
       <form onSubmit={handleSaveSettings} className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-        <h2 className="text-sm font-bold text-brand-navy mb-4">Spam Protection (Cloudflare Turnstile)</h2>
+        <h2 className="text-sm font-bold text-brand-navy mb-4">{ta('settings.spamProtection', lang)}</h2>
         <div className="flex items-center gap-3">
           <label className="relative inline-flex items-center cursor-pointer">
             <input
@@ -312,11 +324,11 @@ export default function SettingsPage() {
             <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-brand-purple rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-magenta"></div>
           </label>
           <span className="text-sm text-gray-700">
-            {settings.turnstile_enabled === 'true' ? 'Enabled' : 'Disabled'}
+            {settings.turnstile_enabled === 'true' ? ta('settings.enabled', lang) : ta('settings.disabled', lang)}
           </span>
         </div>
         <p className="text-xs text-gray-400 mt-2">
-          When enabled, contact and login forms require Cloudflare Turnstile verification. Disable for local development/testing.
+          {ta('settings.turnstileHelp', lang)}
         </p>
         <div className="mt-4">
           <button
@@ -324,29 +336,29 @@ export default function SettingsPage() {
             disabled={saving}
             className="bg-brand-magenta text-white text-sm px-6 py-2 rounded hover:opacity-90 transition disabled:opacity-50"
           >
-            {saving ? 'Saving...' : 'Save'}
+            {saving ? ta('common.saving', lang) : ta('common.save', lang)}
           </button>
         </div>
       </form>
 
       {/* Password Change */}
       <form onSubmit={handleChangePassword} className="bg-white rounded-lg border border-gray-200 p-6">
-        <h2 className="text-sm font-bold text-brand-navy mb-4">Change Password</h2>
+        <h2 className="text-sm font-bold text-brand-navy mb-4">{ta('settings.changePassword', lang)}</h2>
 
-        {pwMessage && (
+        {pwMessageKey && (
           <div className="text-sm text-green-600 bg-green-50 border border-green-200 px-3 py-2 rounded mb-4">
-            {pwMessage}
+            {ta(pwMessageKey, lang)}
           </div>
         )}
-        {pwError && (
+        {(pwErrorKey || pwErrorText) && (
           <div className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded mb-4">
-            {pwError}
+            {pwErrorKey ? ta(pwErrorKey, lang) : pwErrorText}
           </div>
         )}
 
         <div className="space-y-3 max-w-sm">
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Current Password</label>
+            <label className="block text-xs text-gray-400 mb-1">{ta('settings.currentPassword', lang)}</label>
             <input
               type="password"
               required
@@ -356,7 +368,7 @@ export default function SettingsPage() {
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">New Password</label>
+            <label className="block text-xs text-gray-400 mb-1">{ta('settings.newPassword', lang)}</label>
             <input
               type="password"
               required
@@ -366,7 +378,7 @@ export default function SettingsPage() {
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Confirm New Password</label>
+            <label className="block text-xs text-gray-400 mb-1">{ta('settings.confirmNewPassword', lang)}</label>
             <input
               type="password"
               required
@@ -383,7 +395,7 @@ export default function SettingsPage() {
             disabled={pwSaving}
             className="bg-brand-navy text-white text-sm px-6 py-2 rounded hover:opacity-90 transition disabled:opacity-50"
           >
-            {pwSaving ? 'Updating...' : 'Change Password'}
+            {pwSaving ? ta('settings.updating', lang) : ta('settings.changePassword', lang)}
           </button>
         </div>
       </form>

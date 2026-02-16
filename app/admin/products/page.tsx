@@ -3,10 +3,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import type { Product } from '@/lib/types';
+import { useLanguage } from '@/components/LanguageProvider';
+import { ta } from '@/lib/i18n-admin';
 
 const PER_PAGE_OPTIONS = [10, 25, 50, 100];
 
 export default function ProductsPage() {
+  const { lang } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -77,18 +80,18 @@ export default function ProductsPage() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('Are you sure you want to delete this product?')) return;
+    if (!confirm(ta('products.confirmDelete', lang))) return;
     try {
       await fetch(`/api/products/${id}`, { method: 'DELETE' });
       setProducts((prev) => prev.filter((p) => p.id !== id));
     } catch {
-      alert('Failed to delete product');
+      alert(ta('products.deleteFailed', lang));
     }
   }
 
   async function handleBulkDelete() {
     if (selected.size === 0) return;
-    if (!confirm(`Delete ${selected.size} product(s)?`)) return;
+    if (!confirm(`${selected.size} ${ta('products.confirmBulkDelete', lang)}`)) return;
     setDeleting(true);
     try {
       await Promise.all(
@@ -99,13 +102,13 @@ export default function ProductsPage() {
       setProducts((prev) => prev.filter((p) => !selected.has(p.id)));
       setSelected(new Set());
     } catch {
-      alert('Some deletions failed');
+      alert(ta('products.bulkDeleteFailed', lang));
     }
     setDeleting(false);
   }
 
   if (loading) {
-    return <div className="text-sm text-gray-500">Loading products...</div>;
+    return <div className="text-sm text-gray-500">{ta('products.loadingProducts', lang)}</div>;
   }
 
   const allOnPageSelected = paginated.length > 0 && paginated.every((p) => selected.has(p.id));
@@ -113,19 +116,19 @@ export default function ProductsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold text-brand-navy">Products</h1>
+        <h1 className="text-xl font-bold text-brand-navy">{ta('products.title', lang)}</h1>
         <div className="flex gap-2">
           <Link
             href="/admin/products/import"
             className="bg-brand-purple text-white text-sm px-4 py-2 rounded hover:opacity-90 transition"
           >
-            Import CSV
+            {ta('products.importCsv', lang)}
           </Link>
           <Link
             href="/admin/products/new"
             className="bg-brand-magenta text-white text-sm px-4 py-2 rounded hover:opacity-90 transition"
           >
-            + Add Product
+            {ta('products.addProduct', lang)}
           </Link>
         </div>
       </div>
@@ -133,7 +136,7 @@ export default function ProductsPage() {
       <div className="flex items-center justify-between mb-4 gap-4">
         <input
           type="text"
-          placeholder="Search products..."
+          placeholder={ta('products.searchProducts', lang)}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full max-w-sm border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
@@ -144,7 +147,7 @@ export default function ProductsPage() {
             disabled={deleting}
             className="bg-red-500 text-white text-sm px-4 py-2 rounded hover:bg-red-600 transition disabled:opacity-50 whitespace-nowrap"
           >
-            {deleting ? 'Deleting...' : `Delete ${selected.size} selected`}
+            {deleting ? ta('common.deleting', lang) : `${ta('common.delete', lang)} ${selected.size} ${ta('products.deleteSelected', lang)}`}
           </button>
         )}
       </div>
@@ -161,11 +164,11 @@ export default function ProductsPage() {
                   className="rounded border-gray-300"
                 />
               </th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Product</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Slug</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Type</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">SKU</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('products.product', lang)}</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('products.slug', lang)}</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('products.type', lang)}</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('products.sku', lang)}</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('common.actions', lang)}</th>
             </tr>
           </thead>
           <tbody>
@@ -209,19 +212,19 @@ export default function ProductsPage() {
                     className="text-gray-500 hover:text-brand-navy text-xs mr-3"
                     target="_blank"
                   >
-                    View
+                    {ta('products.view', lang)}
                   </Link>
                   <Link
                     href={`/admin/products/${product.id}`}
                     className="text-brand-purple hover:text-brand-magenta text-xs mr-3"
                   >
-                    Edit
+                    {ta('common.edit', lang)}
                   </Link>
                   <button
                     onClick={() => handleDelete(product.id)}
                     className="text-red-500 hover:text-red-700 text-xs"
                   >
-                    Delete
+                    {ta('common.delete', lang)}
                   </button>
                 </td>
               </tr>
@@ -229,7 +232,7 @@ export default function ProductsPage() {
             {paginated.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">
-                  No products found.
+                  {ta('products.noProducts', lang)}
                 </td>
               </tr>
             )}
@@ -241,7 +244,7 @@ export default function ProductsPage() {
       {filtered.length > 0 && (
         <div className="flex items-center justify-between mt-4 text-sm text-gray-500">
           <div className="flex items-center gap-2">
-            <span>Show</span>
+            <span>{ta('products.show', lang)}</span>
             <select
               value={perPage}
               onChange={(e) => setPerPage(Number(e.target.value))}
@@ -251,9 +254,9 @@ export default function ProductsPage() {
                 <option key={n} value={n}>{n}</option>
               ))}
             </select>
-            <span>per page</span>
+            <span>{ta('products.perPage', lang)}</span>
             <span className="text-gray-400 ml-2">
-              ({filtered.length} total{search ? ', filtered' : ''})
+              ({filtered.length} {ta('products.total', lang)}{search ? `, ${ta('products.filtered', lang)}` : ''})
             </span>
           </div>
           {totalPages > 1 && (

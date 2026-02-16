@@ -7,6 +7,23 @@ import { getAdminUser } from '@/lib/auth';
 const ALLOWED_TABLES = ['categories', 'types', 'brands', 'hero_slides', 'products'] as const;
 type TableName = (typeof ALLOWED_TABLES)[number];
 
+/** Assign sort_order = 0, 1, 2, ... based on current array position, then swap the two target indices. */
+function normalizeAndSwap(
+  items: { id: number; sort_order: number }[],
+  currentIndex: number,
+  swapIndex: number,
+): Map<number, number> {
+  // Build new ordering: each item gets its array index as sort_order
+  const orders = new Map<number, number>();
+  for (let i = 0; i < items.length; i++) {
+    orders.set(items[i].id, i);
+  }
+  // Swap the two target items
+  orders.set(items[currentIndex].id, swapIndex);
+  orders.set(items[swapIndex].id, currentIndex);
+  return orders;
+}
+
 export async function POST(request: NextRequest) {
   const user = await getAdminUser();
   if (!user) {
@@ -58,19 +75,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    const swap = siblings[swapIndex];
-    let newCurrentOrder = swap.sort_order;
-    let newSwapOrder = current.sort_order;
-
-    if (newCurrentOrder === newSwapOrder) {
-      newCurrentOrder = swapIndex;
-      newSwapOrder = currentIndex;
-    }
-
+    const orders = normalizeAndSwap(siblings, currentIndex, swapIndex);
     const update = db.prepare('UPDATE categories SET sort_order = ? WHERE id = ?');
     db.transaction(() => {
-      update.run(newCurrentOrder, current.id);
-      update.run(newSwapOrder, swap.id);
+      for (const [itemId, order] of orders) {
+        update.run(order, itemId);
+      }
     })();
 
     return NextResponse.json({ success: true });
@@ -92,27 +102,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    const current = items[currentIndex];
-    const swap = items[swapIndex];
-
-    let newCurrentOrder = swap.sort_order;
-    let newSwapOrder = current.sort_order;
-
-    if (newCurrentOrder === newSwapOrder) {
-      newCurrentOrder = swapIndex;
-      newSwapOrder = currentIndex;
-    }
-
+    const orders = normalizeAndSwap(items, currentIndex, swapIndex);
     const update = db.prepare('UPDATE products SET featured_order = ? WHERE id = ?');
     db.transaction(() => {
-      update.run(newCurrentOrder, current.id);
-      update.run(newSwapOrder, swap.id);
+      for (const [itemId, order] of orders) {
+        update.run(order, itemId);
+      }
     })();
 
     return NextResponse.json({ success: true });
   }
 
-  // For flat tables (types, manufacturers) — simple swap
+  // For flat tables (types, brands, hero_slides) — simple swap
   const items = db
     .prepare(`SELECT id, sort_order FROM ${table} ORDER BY sort_order, id`)
     .all() as { id: number; sort_order: number }[];
@@ -127,21 +128,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   }
 
-  const current = items[currentIndex];
-  const swap = items[swapIndex];
-
-  let newCurrentOrder = swap.sort_order;
-  let newSwapOrder = current.sort_order;
-
-  if (newCurrentOrder === newSwapOrder) {
-    newCurrentOrder = swapIndex;
-    newSwapOrder = currentIndex;
-  }
-
+  const orders = normalizeAndSwap(items, currentIndex, swapIndex);
   const update = db.prepare(`UPDATE ${table} SET sort_order = ? WHERE id = ?`);
   db.transaction(() => {
-    update.run(newCurrentOrder, current.id);
-    update.run(newSwapOrder, swap.id);
+    for (const [itemId, order] of orders) {
+      update.run(order, itemId);
+    }
   })();
 
   return NextResponse.json({ success: true });

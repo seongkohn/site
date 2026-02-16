@@ -18,8 +18,8 @@ export function seedDatabase() {
   insertBrand.run('3DHISTECH', '3D히스테크', '3dhistech', '/images/brands/3dh.jpg', 'https://www.3dhistech.com', 'Digital pathology pioneer offering slide scanners, image analysis, and telepathology solutions.', '슬라이드 스캐너, 이미지 분석, 원격병리 솔루션을 제공하는 디지털 병리 선도 기업.', 2);
   insertBrand.run('Hologic', '홀로직', 'hologic', '/images/brands/hologic.jpg', 'https://www.hologic.com', 'Global leader in women\'s health diagnostics including the ThinPrep and Genius Digital Cytology systems.', '씬프렙 및 Genius 디지털 세포병리 시스템을 포함한 여성 건강 진단 분야의 글로벌 리더.', 3);
   insertBrand.run('Grundium', '그런디움', 'grundium', '/images/brands/grundium.jpg', 'https://www.grundium.com', 'Finnish innovator in portable digital microscopy and remote pathology solutions.', '휴대용 디지털 현미경 및 원격 병리 솔루션 분야의 핀란드 혁신 기업.', 4);
-  insertBrand.run('Milestone', '마일스톤', 'milestone', '/images/brands/milestone.jpg', 'https://www.milestoneimaging.com', 'Pioneer in immunohistochemistry automation and digital pathology solutions.', '면역조직화학 자동화 및 디지털 병리 솔루션 분야의 선도 기업.', 5);
-  insertBrand.run('Biocartis', '바이오카르티스', 'biocartis', '/images/brands/biocartis.jpg', 'https://www.biocartis.com', 'Belgian molecular diagnostics company specializing in rapid, high-quality molecular testing solutions.', '신속하고 고품질의 분자진단 테스트 솔루션을 전문으로 하는 벨기에 회사.', 6);
+  insertBrand.run('Milestone', '마일스톤', 'milestone', '/images/brands/milestone.jpg', 'https://www.milestonemedsrl.com', 'Italian manufacturer of advanced laboratory equipment for tissue processing, including automated tissue processors, grossing stations, and rapid microwave-based histoprocessing systems.', '자동화 조직 처리기, 절삭 스테이션 및 마이크로웨이브 기반 급속 조직처리 시스템 등 조직 처리를 위한 첨단 실험실 장비를 제조하는 이탈리아 기업.', 5);
+  insertBrand.run('Biocartis', '바이오카르티스', 'biocartis', '/images/brands/biocartis.jpg', 'https://www.biocartis.com', 'Belgian molecular diagnostics company offering the fully automated Idylla™ platform for rapid, sample-to-result molecular testing, with a focus on oncology.', '종양학에 중점을 둔 완전 자동화 Idylla™ 플랫폼을 통해 신속한 분자진단 검사를 제공하는 벨기에 분자진단 기업.', 6);
 
   // Categories (parent categories)
   const insertCat = db.prepare(`

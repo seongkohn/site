@@ -1,7 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { Category } from '@/lib/types';
+import { useLanguage } from '@/components/LanguageProvider';
+import { ta } from '@/lib/i18n-admin';
+import { SortableList, SortableTableRow, DragHandle } from '@/components/admin/SortableList';
 
 interface CategoryWithParent extends Category {
   parent_name_en?: string;
@@ -11,6 +14,7 @@ interface CategoryWithParent extends Category {
 const emptyForm = { name_en: '', name_ko: '', parent_id: '', sort_order: '' };
 
 export default function CategoriesPage() {
+  const { lang } = useLanguage();
   const [categories, setCategories] = useState<CategoryWithParent[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyForm);
@@ -63,7 +67,7 @@ export default function CategoriesPage() {
       setEditingId(null);
       await fetchCategories();
     } catch {
-      alert('Failed to save category');
+      alert(ta('categories.saveFailed', lang));
     }
     setSaving(false);
   }
@@ -84,12 +88,12 @@ export default function CategoriesPage() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('Delete this category?')) return;
+    if (!confirm(ta('categories.confirmDelete', lang))) return;
     try {
       await fetch(`/api/categories/${id}`, { method: 'DELETE' });
       await fetchCategories();
     } catch {
-      alert('Failed to delete category');
+      alert(ta('categories.deleteFailed', lang));
     }
   }
 
@@ -111,39 +115,82 @@ export default function CategoriesPage() {
   }
 
   async function handleBulkDelete() {
-    if (!confirm(`Delete ${selected.size} category(ies)?`)) return;
+    if (!confirm(`${selected.size} ${ta('categories.confirmBulkDelete', lang)}`)) return;
     setDeleting(true);
     try {
       await Promise.all([...selected].map((id) => fetch(`/api/categories/${id}`, { method: 'DELETE' })));
       setSelected(new Set());
       await fetchCategories();
     } catch {
-      alert('Failed to delete some categories');
+      alert(ta('categories.bulkDeleteFailed', lang));
     }
     setDeleting(false);
   }
 
-  async function handleMove(id: number, direction: 'up' | 'down') {
+  const parentCategories = useMemo(() => categories.filter((c) => !c.parent_id), [categories]);
+  const childCategories = useMemo(() => categories.filter((c) => c.parent_id !== null), [categories]);
+
+  // Build a display-ordered list: parent, then its children, then next parent, etc.
+  const orderedCategories = useMemo(() => {
+    const result: CategoryWithParent[] = [];
+    for (const parent of parentCategories) {
+      result.push(parent);
+      for (const child of childCategories.filter((c) => c.parent_id === parent.id)) {
+        result.push(child);
+      }
+    }
+    // Add any orphaned children (parent_id doesn't match existing parent)
+    for (const child of childCategories) {
+      if (!result.includes(child)) result.push(child);
+    }
+    return result;
+  }, [parentCategories, childCategories]);
+
+  async function handleReorderLevel(orderedIds: number[], parentId: number | null) {
+    // Optimistically reorder within this level
+    const prev = categories;
+    setCategories((cats) => {
+      const updated = [...cats];
+      const levelItems = orderedIds.map((id) => updated.find((c) => c.id === id)!);
+      // Remove old positions and re-insert
+      const withoutLevel = updated.filter((c) => !orderedIds.includes(c.id));
+      // Find insertion point: before first item at next parent level or at end
+      if (parentId === null) {
+        // Rebuild full order: parents interleaved with children
+        const result: CategoryWithParent[] = [];
+        for (const p of levelItems) {
+          result.push(p);
+          result.push(...withoutLevel.filter((c) => c.parent_id === p.id));
+        }
+        // Add remaining items not yet included
+        for (const c of withoutLevel) {
+          if (!result.includes(c)) result.push(c);
+        }
+        return result;
+      } else {
+        // Re-insert children in new order after their parent
+        const parentIndex = withoutLevel.findIndex((c) => c.id === parentId);
+        const insertAt = parentIndex + 1;
+        withoutLevel.splice(insertAt, 0, ...levelItems);
+        return withoutLevel;
+      }
+    });
+
     try {
-      await fetch('/api/reorder', {
+      await fetch('/api/reorder-batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table: 'categories', id, direction }),
+        body: JSON.stringify({ table: 'categories', ids: orderedIds }),
       });
-      await fetchCategories();
     } catch {
-      // error
+      setCategories(prev);
     }
   }
 
-  if (loading) {
-    return <div className="text-sm text-gray-500">Loading categories...</div>;
-  }
+  // Group items for DnD: we need separate SortableList per level
+  // For the flat table display, we show all categories but only allow drag within same level
+  // We'll use separate sortable contexts per parent group
 
-  const parentCategories = categories.filter((c) => !c.parent_id);
-  const childCategories = categories.filter((c) => c.parent_id !== null);
-
-  // Build options for parent select: top-level and their children (max 2 levels as parent)
   function getParentOptions() {
     const options: { value: number; label: string }[] = [];
     for (const parent of parentCategories) {
@@ -157,18 +204,32 @@ export default function CategoriesPage() {
     return options;
   }
 
+  if (loading) {
+    return <div className="text-sm text-gray-500">{ta('categories.loadingCategories', lang)}</div>;
+  }
+
+  // Group children by parent for per-level DnD
+  const childrenByParent = new Map<number, CategoryWithParent[]>();
+  for (const child of childCategories) {
+    if (child.parent_id) {
+      const group = childrenByParent.get(child.parent_id) || [];
+      group.push(child);
+      childrenByParent.set(child.parent_id, group);
+    }
+  }
+
   return (
     <div>
-      <h1 className="text-xl font-bold text-brand-navy mb-4">Categories</h1>
+      <h1 className="text-xl font-bold text-brand-navy mb-4">{ta('categories.title', lang)}</h1>
 
       {/* Add/Edit form */}
       <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
         <p className="text-xs font-medium text-gray-500 mb-3">
-          {editingId ? 'Edit Category' : 'Add Category'}
+          {editingId ? ta('categories.editCategory', lang) : ta('categories.addCategory', lang)}
         </p>
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Name EN</label>
+            <label className="block text-xs text-gray-400 mb-1">{ta('common.nameEn', lang)}</label>
             <input
               type="text"
               required
@@ -178,7 +239,7 @@ export default function CategoriesPage() {
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Name KO</label>
+            <label className="block text-xs text-gray-400 mb-1">{ta('common.nameKo', lang)}</label>
             <input
               type="text"
               value={form.name_ko}
@@ -187,13 +248,13 @@ export default function CategoriesPage() {
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Parent</label>
+            <label className="block text-xs text-gray-400 mb-1">{ta('categories.parent', lang)}</label>
             <select
               value={form.parent_id}
               onChange={(e) => setForm({ ...form, parent_id: e.target.value })}
               className="border border-gray-200 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple"
             >
-              <option value="">-- None (top level) --</option>
+              <option value="">{ta('categories.noneTopLevel', lang)}</option>
               {getParentOptions().map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
@@ -204,7 +265,7 @@ export default function CategoriesPage() {
             disabled={saving}
             className="bg-brand-magenta text-white text-sm px-4 py-1.5 rounded hover:opacity-90 transition disabled:opacity-50"
           >
-            {saving ? 'Saving...' : editingId ? 'Update' : 'Add'}
+            {saving ? ta('common.saving', lang) : editingId ? ta('common.update', lang) : ta('common.add', lang)}
           </button>
           {editingId && (
             <button
@@ -212,7 +273,7 @@ export default function CategoriesPage() {
               onClick={cancelEdit}
               className="text-sm text-gray-500 hover:text-brand-navy"
             >
-              Cancel
+              {ta('common.cancel', lang)}
             </button>
           )}
         </div>
@@ -226,7 +287,7 @@ export default function CategoriesPage() {
             disabled={deleting}
             className="bg-red-500 text-white text-sm px-4 py-1.5 rounded hover:bg-red-600 transition disabled:opacity-50"
           >
-            {deleting ? 'Deleting...' : `Delete Selected (${selected.size})`}
+            {deleting ? ta('common.deleting', lang) : `${ta('common.delete', lang)} (${selected.size})`}
           </button>
         </div>
       )}
@@ -244,74 +305,111 @@ export default function CategoriesPage() {
                   className="rounded border-gray-300"
                 />
               </th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Name EN</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Name KO</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Parent</th>
-              <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase">Order</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
+              <th className="w-10"></th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('common.nameEn', lang)}</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('common.nameKo', lang)}</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('categories.parent', lang)}</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('common.actions', lang)}</th>
             </tr>
           </thead>
-          <tbody>
-            {categories.map((cat) => (
-              <tr key={cat.id} className="border-b border-gray-100 hover:bg-gray-50">
-                <td className="px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(cat.id)}
-                    onChange={() => toggleSelect(cat.id)}
-                    className="rounded border-gray-300"
-                  />
-                </td>
-                <td className="px-4 py-3">
-                  {cat.parent_id && (
-                    <span className="text-gray-300 mr-1">
-                      {categories.find(c => c.id === cat.parent_id)?.parent_id ? '\u2014\u2014' : '\u2014'}
-                    </span>
-                  )}
-                  {cat.name_en}
-                </td>
-                <td className="px-4 py-3 text-gray-600">{cat.name_ko}</td>
-                <td className="px-4 py-3 text-gray-400 text-xs">{cat.parent_name_en || '--'}</td>
-                <td className="px-4 py-3 text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    <button
-                      onClick={() => handleMove(cat.id, 'up')}
-                      className="p-1 text-gray-400 hover:text-brand-navy rounded hover:bg-gray-100"
-                      title="Move up"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleMove(cat.id, 'down')}
-                      className="p-1 text-gray-400 hover:text-brand-navy rounded hover:bg-gray-100"
-                      title="Move down"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button onClick={() => startEdit(cat)} className="text-brand-purple hover:text-brand-magenta text-xs mr-3">
-                    Edit
-                  </button>
-                  <button onClick={() => handleDelete(cat.id)} className="text-red-500 hover:text-red-700 text-xs">
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {categories.length === 0 && (
+          {/* Top-level categories with DnD */}
+          <SortableList
+            items={parentCategories}
+            onReorder={(ids) => handleReorderLevel(ids, null)}
+          >
+            <tbody>
+              {parentCategories.map((parent) => {
+                const children = childrenByParent.get(parent.id) || [];
+                return (
+                  <SortableTableRow key={parent.id} id={parent.id}>
+                    {({ listeners, attributes }) => (
+                      <>
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={selected.has(parent.id)}
+                            onChange={() => toggleSelect(parent.id)}
+                            className="rounded border-gray-300"
+                          />
+                        </td>
+                        <td className="px-2 py-3 text-center">
+                          <DragHandle listeners={listeners} attributes={attributes} />
+                        </td>
+                        <td className="px-4 py-3">{parent.name_en}</td>
+                        <td className="px-4 py-3 text-gray-600">{parent.name_ko}</td>
+                        <td className="px-4 py-3 text-gray-400 text-xs">--</td>
+                        <td className="px-4 py-3 text-right">
+                          <button onClick={() => startEdit(parent)} className="text-brand-purple hover:text-brand-magenta text-xs mr-3">
+                            {ta('common.edit', lang)}
+                          </button>
+                          <button onClick={() => handleDelete(parent.id)} className="text-red-500 hover:text-red-700 text-xs">
+                            {ta('common.delete', lang)}
+                          </button>
+                        </td>
+                      </>
+                    )}
+                  </SortableTableRow>
+                );
+              })}
+            </tbody>
+          </SortableList>
+          {/* Subcategory groups - each parent's children as a separate sortable group */}
+          {parentCategories.map((parent) => {
+            const children = childrenByParent.get(parent.id);
+            if (!children || children.length === 0) return null;
+            return (
+              <SortableList
+                key={`children-${parent.id}`}
+                items={children}
+                onReorder={(ids) => handleReorderLevel(ids, parent.id)}
+              >
+                <tbody>
+                  {children.map((cat) => (
+                    <SortableTableRow key={cat.id} id={cat.id}>
+                      {({ listeners, attributes }) => (
+                        <>
+                          <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={selected.has(cat.id)}
+                              onChange={() => toggleSelect(cat.id)}
+                              className="rounded border-gray-300"
+                            />
+                          </td>
+                          <td className="px-2 py-3 text-center">
+                            <DragHandle listeners={listeners} attributes={attributes} />
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="text-gray-300 mr-1">{'\u2014'}</span>
+                            {cat.name_en}
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">{cat.name_ko}</td>
+                          <td className="px-4 py-3 text-gray-400 text-xs">{cat.parent_name_en || parent.name_en}</td>
+                          <td className="px-4 py-3 text-right">
+                            <button onClick={() => startEdit(cat)} className="text-brand-purple hover:text-brand-magenta text-xs mr-3">
+                              {ta('common.edit', lang)}
+                            </button>
+                            <button onClick={() => handleDelete(cat.id)} className="text-red-500 hover:text-red-700 text-xs">
+                              {ta('common.delete', lang)}
+                            </button>
+                          </td>
+                        </>
+                      )}
+                    </SortableTableRow>
+                  ))}
+                </tbody>
+              </SortableList>
+            );
+          })}
+          {categories.length === 0 && (
+            <tbody>
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">
-                  No categories yet.
+                  {ta('categories.noCategories', lang)}
                 </td>
               </tr>
-            )}
-          </tbody>
+            </tbody>
+          )}
         </table>
       </div>
     </div>

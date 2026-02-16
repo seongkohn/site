@@ -26,3 +26,60 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Homepage partners marquee */
+.partner-marquee-mask {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+}
+
+.partner-marquee-mask::before,
+.partner-marquee-mask::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 72px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.partner-marquee-mask::before {
+  left: 0;
+  background: linear-gradient(to right, var(--color-brand-navy) 0%, rgba(26, 26, 46, 0) 100%);
+}
+
+.partner-marquee-mask::after {
+  right: 0;
+  background: linear-gradient(to left, var(--color-brand-navy) 0%, rgba(26, 26, 46, 0) 100%);
+}
+
+.partner-marquee-track {
+  display: flex;
+  align-items: center;
+  gap: 2.25rem;
+  width: max-content;
+  white-space: nowrap;
+  animation: partner-marquee-scroll 40s linear infinite;
+  will-change: transform;
+}
+
+.partner-marquee-mask:hover .partner-marquee-track {
+  animation-play-state: paused;
+}
+
+.partner-marquee-item {
+  display: inline-flex;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+@keyframes partner-marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}

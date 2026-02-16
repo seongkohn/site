@@ -15,7 +15,7 @@ export default function ProductCard({ product }: { product: Product }) {
   return (
     <Link
       href={`/products/${product.slug}`}
-      className="block group bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition"
+      className="block group bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition h-full flex flex-col"
     >
       <div className="aspect-[4/3] relative bg-white">
         <Image
@@ -26,13 +26,13 @@ export default function ProductCard({ product }: { product: Product }) {
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
         />
       </div>
-      <div className="p-4">
+      <div className="p-4 flex-1 flex flex-col">
         {categoryName && (
-          <span className="text-xs font-medium text-brand-purple bg-brand-pale px-2 py-0.5 rounded">
+          <span className="self-start text-xs font-medium text-brand-purple bg-brand-pale px-2 py-0.5 rounded">
             {categoryName}
           </span>
         )}
-        <h3 className="mt-2 font-semibold text-brand-navy text-sm leading-tight group-hover:text-brand-magenta transition">
+        <h3 className="mt-2 font-semibold text-brand-navy text-sm leading-tight group-hover:text-brand-magenta transition line-clamp-2">
           {name}
         </h3>
         {brandName && (

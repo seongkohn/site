@@ -26,6 +26,8 @@ function FeaturedCarousel({ products, lang }: { products: Product[]; lang: 'en' 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const pausedRef = useRef(false);
+  const pauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const updateScrollState = useCallback(() => {
     const el = scrollRef.current;
@@ -42,11 +44,33 @@ function FeaturedCarousel({ products, lang }: { products: Product[]; lang: 'en' 
     return () => el.removeEventListener('scroll', updateScrollState);
   }, [updateScrollState]);
 
+  // Auto-scroll every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const el = scrollRef.current;
+      if (!el || pausedRef.current) return;
+      if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 1) {
+        el.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        const cardWidth = el.querySelector(':scope > div')?.clientWidth || 260;
+        el.scrollBy({ left: cardWidth, behavior: 'smooth' });
+      }
+    }, 5000);
+    return () => {
+      clearInterval(interval);
+      if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
+    };
+  }, []);
+
   function scroll(direction: 'left' | 'right') {
     const el = scrollRef.current;
     if (!el) return;
-    const cardWidth = el.querySelector(':scope > a')?.clientWidth || 260;
+    const cardWidth = el.querySelector(':scope > div')?.clientWidth || 260;
     el.scrollBy({ left: direction === 'left' ? -cardWidth * 2 : cardWidth * 2, behavior: 'smooth' });
+    // Pause auto-rotation briefly after manual interaction
+    pausedRef.current = true;
+    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
+    pauseTimerRef.current = setTimeout(() => { pausedRef.current = false; }, 8000);
   }
 
   return (
@@ -90,6 +114,8 @@ function FeaturedCarousel({ products, lang }: { products: Product[]; lang: 'en' 
           ref={scrollRef}
           className="flex gap-3.5 overflow-x-auto scroll-smooth no-scrollbar"
           style={{ scrollSnapType: 'x mandatory' }}
+          onMouseEnter={() => { pausedRef.current = true; }}
+          onMouseLeave={() => { pausedRef.current = false; }}
         >
           {products.map((product) => (
             <div key={product.id} className="flex-none w-[220px] sm:w-[240px] lg:w-[260px]" style={{ scrollSnapAlign: 'start' }}>
@@ -305,12 +331,17 @@ export default function HomeClient({ featuredProducts, brands, heroSlides }: Hom
           <div className="text-[10px] font-semibold tracking-[0.15em] text-gray-400 mb-3.5">
             {t('home.ourPartners', lang)}
           </div>
-          <div className="flex justify-center flex-wrap gap-8">
-            {brands.map((b) => (
-              <span key={b.id} className="text-gray-300 text-sm font-medium">
+          <div className="partner-marquee-mask mx-auto w-full max-w-2xl">
+            <div
+              className="partner-marquee-track"
+              style={{ animationDuration: `${Math.max(30, brands.length * 6)}s` }}
+            >
+              {[...brands, ...brands].map((b, i) => (
+                <span key={`${b.id}-${i}`} className="partner-marquee-item text-gray-300 text-sm font-medium">
                 {localize(lang, b.name_en, b.name_ko)}
-              </span>
-            ))}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </section>

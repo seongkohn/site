@@ -2,10 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import type { Type } from '@/lib/types';
+import { useLanguage } from '@/components/LanguageProvider';
+import { ta } from '@/lib/i18n-admin';
+import { SortableList, SortableTableRow, DragHandle } from '@/components/admin/SortableList';
 
 const emptyForm = { name_en: '', name_ko: '', sort_order: '' };
 
 export default function TypesPage() {
+  const { lang } = useLanguage();
   const [types, setTypes] = useState<Type[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyForm);
@@ -56,7 +60,7 @@ export default function TypesPage() {
       setEditingId(null);
       await fetchTypes();
     } catch {
-      alert('Failed to save type');
+      alert(ta('types.saveFailed', lang));
     }
     setSaving(false);
   }
@@ -76,12 +80,12 @@ export default function TypesPage() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('Delete this type?')) return;
+    if (!confirm(ta('types.confirmDelete', lang))) return;
     try {
       await fetch(`/api/types/${id}`, { method: 'DELETE' });
       await fetchTypes();
     } catch {
-      alert('Failed to delete type');
+      alert(ta('types.deleteFailed', lang));
     }
   }
 
@@ -103,47 +107,48 @@ export default function TypesPage() {
   }
 
   async function handleBulkDelete() {
-    if (!confirm(`Delete ${selected.size} type(s)?`)) return;
+    if (!confirm(`${selected.size} ${ta('types.confirmBulkDelete', lang)}`)) return;
     setDeleting(true);
     try {
       await Promise.all([...selected].map((id) => fetch(`/api/types/${id}`, { method: 'DELETE' })));
       setSelected(new Set());
       await fetchTypes();
     } catch {
-      alert('Failed to delete some types');
+      alert(ta('types.bulkDeleteFailed', lang));
     }
     setDeleting(false);
   }
 
-  async function handleMove(id: number, direction: 'up' | 'down') {
+  async function handleReorder(orderedIds: number[]) {
+    const prev = types;
+    setTypes(orderedIds.map((id) => types.find((t) => t.id === id)!));
     try {
-      await fetch('/api/reorder', {
+      await fetch('/api/reorder-batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table: 'types', id, direction }),
+        body: JSON.stringify({ table: 'types', ids: orderedIds }),
       });
-      await fetchTypes();
     } catch {
-      // error
+      setTypes(prev);
     }
   }
 
   if (loading) {
-    return <div className="text-sm text-gray-500">Loading types...</div>;
+    return <div className="text-sm text-gray-500">{ta('types.loadingTypes', lang)}</div>;
   }
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-brand-navy mb-4">Types</h1>
+      <h1 className="text-xl font-bold text-brand-navy mb-4">{ta('types.title', lang)}</h1>
 
       {/* Add/Edit form */}
       <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
         <p className="text-xs font-medium text-gray-500 mb-3">
-          {editingId ? 'Edit Type' : 'Add Type'}
+          {editingId ? ta('types.editType', lang) : ta('types.addType', lang)}
         </p>
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Name EN</label>
+            <label className="block text-xs text-gray-400 mb-1">{ta('common.nameEn', lang)}</label>
             <input
               type="text"
               required
@@ -153,7 +158,7 @@ export default function TypesPage() {
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-400 mb-1">Name KO</label>
+            <label className="block text-xs text-gray-400 mb-1">{ta('common.nameKo', lang)}</label>
             <input
               type="text"
               value={form.name_ko}
@@ -166,7 +171,7 @@ export default function TypesPage() {
             disabled={saving}
             className="bg-brand-magenta text-white text-sm px-4 py-1.5 rounded hover:opacity-90 transition disabled:opacity-50"
           >
-            {saving ? 'Saving...' : editingId ? 'Update' : 'Add'}
+            {saving ? ta('common.saving', lang) : editingId ? ta('common.update', lang) : ta('common.add', lang)}
           </button>
           {editingId && (
             <button
@@ -174,7 +179,7 @@ export default function TypesPage() {
               onClick={cancelEdit}
               className="text-sm text-gray-500 hover:text-brand-navy"
             >
-              Cancel
+              {ta('common.cancel', lang)}
             </button>
           )}
         </div>
@@ -188,7 +193,7 @@ export default function TypesPage() {
             disabled={deleting}
             className="bg-red-500 text-white text-sm px-4 py-1.5 rounded hover:bg-red-600 transition disabled:opacity-50"
           >
-            {deleting ? 'Deleting...' : `Delete Selected (${selected.size})`}
+            {deleting ? ta('common.deleting', lang) : `${ta('common.delete', lang)} (${selected.size})`}
           </button>
         </div>
       )}
@@ -206,65 +211,52 @@ export default function TypesPage() {
                   className="rounded border-gray-300"
                 />
               </th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Name EN</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Name KO</th>
-              <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase">Order</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Actions</th>
+              <th className="w-10"></th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('common.nameEn', lang)}</th>
+              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('common.nameKo', lang)}</th>
+              <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('common.actions', lang)}</th>
             </tr>
           </thead>
-          <tbody>
-            {types.map((type) => (
-              <tr key={type.id} className="border-b border-gray-100 hover:bg-gray-50">
-                <td className="px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(type.id)}
-                    onChange={() => toggleSelect(type.id)}
-                    className="rounded border-gray-300"
-                  />
-                </td>
-                <td className="px-4 py-3">{type.name_en}</td>
-                <td className="px-4 py-3 text-gray-600">{type.name_ko}</td>
-                <td className="px-4 py-3 text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    <button
-                      onClick={() => handleMove(type.id, 'up')}
-                      className="p-1 text-gray-400 hover:text-brand-navy rounded hover:bg-gray-100"
-                      title="Move up"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleMove(type.id, 'down')}
-                      className="p-1 text-gray-400 hover:text-brand-navy rounded hover:bg-gray-100"
-                      title="Move down"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button onClick={() => startEdit(type)} className="text-brand-purple hover:text-brand-magenta text-xs mr-3">
-                    Edit
-                  </button>
-                  <button onClick={() => handleDelete(type.id)} className="text-red-500 hover:text-red-700 text-xs">
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {types.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">
-                  No types yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
+          <SortableList items={types} onReorder={handleReorder}>
+            <tbody>
+              {types.map((type) => (
+                <SortableTableRow key={type.id} id={type.id}>
+                  {({ listeners, attributes }) => (
+                    <>
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(type.id)}
+                          onChange={() => toggleSelect(type.id)}
+                          className="rounded border-gray-300"
+                        />
+                      </td>
+                      <td className="px-2 py-3 text-center">
+                        <DragHandle listeners={listeners} attributes={attributes} />
+                      </td>
+                      <td className="px-4 py-3">{type.name_en}</td>
+                      <td className="px-4 py-3 text-gray-600">{type.name_ko}</td>
+                      <td className="px-4 py-3 text-right">
+                        <button onClick={() => startEdit(type)} className="text-brand-purple hover:text-brand-magenta text-xs mr-3">
+                          {ta('common.edit', lang)}
+                        </button>
+                        <button onClick={() => handleDelete(type.id)} className="text-red-500 hover:text-red-700 text-xs">
+                          {ta('common.delete', lang)}
+                        </button>
+                      </td>
+                    </>
+                  )}
+                </SortableTableRow>
+              ))}
+              {types.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">
+                    {ta('types.noTypes', lang)}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </SortableList>
         </table>
       </div>
     </div>
