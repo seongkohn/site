@@ -5,6 +5,7 @@ import { LanguageProvider } from "@/components/LanguageProvider";
 import Header from "@/components/Header";
 import SearchBar from "@/components/SearchBar";
 import Footer from "@/components/Footer";
+import { isIndexingEnabled } from "@/lib/site-visibility";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -21,6 +22,7 @@ const notoSansKR = Noto_Sans_KR({
 });
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.seongkohn.com";
+const INDEXING_ENABLED = isIndexingEnabled();
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -66,6 +68,21 @@ export const metadata: Metadata = {
   alternates: {
     canonical: SITE_URL,
   },
+  robots: INDEXING_ENABLED
+    ? {
+      index: true,
+      follow: true,
+    }
+    : {
+      index: false,
+      follow: false,
+      nocache: true,
+      googleBot: {
+        index: false,
+        follow: false,
+        noimageindex: true,
+      },
+    },
 };
 
 export default function RootLayout({

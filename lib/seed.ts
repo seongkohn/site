@@ -1,5 +1,6 @@
 import { getDb } from './db';
 import { initializeSchema } from './schema';
+import { defaultAboutTimeline, serializeAboutTimeline } from './about-timeline';
 
 export function seedDatabase() {
   initializeSchema();
@@ -178,4 +179,5 @@ export function seedDatabase() {
   insertSetting.run('company_phone', '+82-2-540-3311');
   insertSetting.run('company_fax', '+82-2-540-3312');
   insertSetting.run('company_email', 'labsales@seongkohn.com');
+  insertSetting.run('about_timeline_json', serializeAboutTimeline(defaultAboutTimeline));
 }

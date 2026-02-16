@@ -34,9 +34,8 @@ server {
         expires 30d;
     }
 
-    location /robots.txt {
-        alias /var/www/seongkohn-site/public/robots.txt;
-    }
+    # Let Next.js serve /robots.txt and /sitemap.xml dynamically
+    # based on SITE_INDEXING_ENABLED.
 
     # Reverse proxy to Next.js
     location / {

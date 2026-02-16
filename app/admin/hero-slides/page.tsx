@@ -2,10 +2,25 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import type { HeroSlide } from '@/lib/types';
 import { useLanguage } from '@/components/LanguageProvider';
 import { ta } from '@/lib/i18n-admin';
-import { SortableList, SortableTableRow, DragHandle } from '@/components/admin/SortableList';
+import { SortableTableRow, DragHandle } from '@/components/admin/SortableList';
 
 const emptyForm = {
   title_en: '',
@@ -32,7 +47,27 @@ export default function HeroSlidesPage() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    fetchSlides();
+    let cancelled = false;
+
+    fetch('/api/hero-slides?all=1')
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) {
+          setSlides(data);
+        }
+      })
+      .catch(() => {
+        // no-op
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function fetchSlides() {
@@ -179,6 +214,35 @@ export default function HeroSlidesPage() {
     } catch {
       setSlides(prev);
     }
+  }
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function reorderIds(ids: number[], activeId: number, overId: number): number[] {
+    const oldIndex = ids.indexOf(activeId);
+    const newIndex = ids.indexOf(overId);
+    if (oldIndex === -1 || newIndex === -1) return ids;
+
+    const next = [...ids];
+    next.splice(oldIndex, 1);
+    next.splice(newIndex, 0, activeId);
+    return next;
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const activeId = Number(active.id);
+    const overId = Number(over.id);
+    if (Number.isNaN(activeId) || Number.isNaN(overId)) return;
+
+    const ids = slides.map((slide) => slide.id);
+    if (!ids.includes(activeId) || !ids.includes(overId)) return;
+    handleReorder(reorderIds(ids, activeId, overId));
   }
 
   if (loading) {
@@ -337,87 +401,94 @@ export default function HeroSlidesPage() {
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="px-4 py-3 w-8">
-                <input
-                  type="checkbox"
-                  checked={slides.length > 0 && selected.size === slides.length}
-                  onChange={toggleSelectAll}
-                  className="rounded border-gray-300"
-                />
-              </th>
-              <th className="w-10"></th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('heroSlides.image', lang)}</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Title</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('heroSlides.style', lang)}</th>
-              <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('heroSlides.active', lang)}</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('common.actions', lang)}</th>
-            </tr>
-          </thead>
-          <SortableList items={slides} onReorder={handleReorder}>
-            <tbody>
-              {slides.map((slide) => (
-                <SortableTableRow key={slide.id} id={slide.id}>
-                  {({ listeners, attributes }) => (
-                    <>
-                      <td className="px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={selected.has(slide.id)}
-                          onChange={() => toggleSelect(slide.id)}
-                          className="rounded border-gray-300"
-                        />
-                      </td>
-                      <td className="px-2 py-3 text-center">
-                        <DragHandle listeners={listeners} attributes={attributes} />
-                      </td>
-                      <td className="px-4 py-3">
-                        {slide.image ? (
-                          <Image src={slide.image} alt="" width={80} height={40} className="rounded border object-cover" />
-                        ) : (
-                          <span className="text-gray-300 text-xs">{ta('heroSlides.noImage', lang)}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-gray-800">{slide.title_en}</div>
-                        <div className="text-gray-500 text-xs">{slide.title_ko}</div>
-                        {slide.subtitle_en && (
-                          <div className="text-gray-400 text-xs mt-0.5">{slide.subtitle_en}</div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-500">
-                        <span className="inline-block mr-2">{slide.text_color === 'light' ? ta('heroSlides.light', lang) : ta('heroSlides.dark', lang)}</span>
-                        <span>{slide.text_align === 'left' ? ta('heroSlides.left', lang) : ta('heroSlides.right', lang)}</span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`inline-block w-2 h-2 rounded-full ${slide.is_active ? 'bg-green-500' : 'bg-gray-300'}`} />
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <button onClick={() => startEdit(slide)} className="text-brand-purple hover:text-brand-magenta text-xs mr-3">
-                          {ta('common.edit', lang)}
-                        </button>
-                        <button onClick={() => handleDelete(slide.id)} className="text-red-500 hover:text-red-700 text-xs">
-                          {ta('common.delete', lang)}
-                        </button>
-                      </td>
-                    </>
-                  )}
-                </SortableTableRow>
-              ))}
-              {slides.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">
-                    {ta('heroSlides.noSlides', lang)}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </SortableList>
-        </table>
-      </div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        modifiers={[restrictToVerticalAxis]}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="px-4 py-3 w-8">
+                  <input
+                    type="checkbox"
+                    checked={slides.length > 0 && selected.size === slides.length}
+                    onChange={toggleSelectAll}
+                    className="rounded border-gray-300"
+                  />
+                </th>
+                <th className="w-10"></th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('heroSlides.image', lang)}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Title</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('heroSlides.style', lang)}</th>
+                <th className="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('heroSlides.active', lang)}</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('common.actions', lang)}</th>
+              </tr>
+            </thead>
+            <SortableContext items={slides.map((slide) => slide.id)} strategy={verticalListSortingStrategy}>
+              <tbody>
+                {slides.map((slide) => (
+                  <SortableTableRow key={slide.id} id={slide.id}>
+                    {({ listeners, attributes }) => (
+                      <>
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={selected.has(slide.id)}
+                            onChange={() => toggleSelect(slide.id)}
+                            className="rounded border-gray-300"
+                          />
+                        </td>
+                        <td className="px-2 py-3 text-center">
+                          <DragHandle listeners={listeners} attributes={attributes} />
+                        </td>
+                        <td className="px-4 py-3">
+                          {slide.image ? (
+                            <Image src={slide.image} alt="" width={80} height={40} className="rounded border object-cover" />
+                          ) : (
+                            <span className="text-gray-300 text-xs">{ta('heroSlides.noImage', lang)}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-gray-800">{slide.title_en}</div>
+                          <div className="text-gray-500 text-xs">{slide.title_ko}</div>
+                          {slide.subtitle_en && (
+                            <div className="text-gray-400 text-xs mt-0.5">{slide.subtitle_en}</div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500">
+                          <span className="inline-block mr-2">{slide.text_color === 'light' ? ta('heroSlides.light', lang) : ta('heroSlides.dark', lang)}</span>
+                          <span>{slide.text_align === 'left' ? ta('heroSlides.left', lang) : ta('heroSlides.right', lang)}</span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`inline-block w-2 h-2 rounded-full ${slide.is_active ? 'bg-green-500' : 'bg-gray-300'}`} />
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button onClick={() => startEdit(slide)} className="text-brand-purple hover:text-brand-magenta text-xs mr-3">
+                            {ta('common.edit', lang)}
+                          </button>
+                          <button onClick={() => handleDelete(slide.id)} className="text-red-500 hover:text-red-700 text-xs">
+                            {ta('common.delete', lang)}
+                          </button>
+                        </td>
+                      </>
+                    )}
+                  </SortableTableRow>
+                ))}
+                {slides.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">
+                      {ta('heroSlides.noSlides', lang)}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </SortableContext>
+          </table>
+        </div>
+      </DndContext>
     </div>
   );
 }

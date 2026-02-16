@@ -9,6 +9,7 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type UniqueIdentifier,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -19,8 +20,13 @@ import {
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { CSS } from '@dnd-kit/utilities';
 
+type DragInteropProps = {
+  listeners?: Record<string, unknown>;
+  attributes?: Record<string, unknown>;
+};
+
 /** Drag handle icon (6-dot grip) */
-export function DragHandle({ listeners, attributes }: { listeners?: Record<string, Function>; attributes?: Record<string, unknown> }) {
+export function DragHandle({ listeners, attributes }: DragInteropProps) {
   return (
     <button
       type="button"
@@ -45,8 +51,8 @@ export function SortableTableRow({
   id,
   children,
 }: {
-  id: number;
-  children: (props: { listeners: Record<string, Function>; attributes: Record<string, unknown> }) => React.ReactNode;
+  id: UniqueIdentifier;
+  children: (props: DragInteropProps) => React.ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style: React.CSSProperties = {
@@ -59,7 +65,10 @@ export function SortableTableRow({
 
   return (
     <tr ref={setNodeRef} style={style}>
-      {children({ listeners: listeners as unknown as Record<string, Function>, attributes: attributes as unknown as Record<string, unknown> })}
+      {children({
+        listeners: (listeners ?? undefined) as unknown as Record<string, unknown> | undefined,
+        attributes: attributes as unknown as Record<string, unknown>,
+      })}
     </tr>
   );
 }
@@ -69,8 +78,8 @@ export function SortableItem({
   id,
   children,
 }: {
-  id: number;
-  children: (props: { listeners: Record<string, Function>; attributes: Record<string, unknown> }) => React.ReactNode;
+  id: UniqueIdentifier;
+  children: (props: DragInteropProps) => React.ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style: React.CSSProperties = {
@@ -83,7 +92,10 @@ export function SortableItem({
 
   return (
     <div ref={setNodeRef} style={style}>
-      {children({ listeners: listeners as unknown as Record<string, Function>, attributes: attributes as unknown as Record<string, unknown> })}
+      {children({
+        listeners: (listeners ?? undefined) as unknown as Record<string, unknown> | undefined,
+        attributes: attributes as unknown as Record<string, unknown>,
+      })}
     </div>
   );
 }
@@ -94,8 +106,8 @@ export function SortableList({
   onReorder,
   children,
 }: {
-  items: { id: number }[];
-  onReorder: (orderedIds: number[]) => void;
+  items: { id: UniqueIdentifier }[];
+  onReorder: (orderedIds: UniqueIdentifier[]) => void;
   children: React.ReactNode;
 }) {
   const sensors = useSensors(
@@ -108,13 +120,13 @@ export function SortableList({
     if (!over || active.id === over.id) return;
 
     const ids = items.map((item) => item.id);
-    const oldIndex = ids.indexOf(active.id as number);
-    const newIndex = ids.indexOf(over.id as number);
+    const oldIndex = ids.indexOf(active.id);
+    const newIndex = ids.indexOf(over.id);
     if (oldIndex === -1 || newIndex === -1) return;
 
     const newIds = [...ids];
     newIds.splice(oldIndex, 1);
-    newIds.splice(newIndex, 0, active.id as number);
+    newIds.splice(newIndex, 0, active.id);
     onReorder(newIds);
   }
 

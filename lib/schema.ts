@@ -1,4 +1,5 @@
 import { getDb } from './db';
+import { defaultAboutTimeline, serializeAboutTimeline } from './about-timeline';
 
 export function initializeSchema() {
   const db = getDb();
@@ -182,6 +183,7 @@ export function initializeSchema() {
     ['contact_recipients', 'seongkohn@outlook.com'],
     ['turnstile_enabled', 'false'],
     ['leads_auto_delete_days', '30'],
+    ['about_timeline_json', serializeAboutTimeline(defaultAboutTimeline)],
   ];
   const upsertSetting = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO NOTHING');
   for (const [key, value] of smtpDefaults) {

@@ -2,10 +2,15 @@ import type { MetadataRoute } from 'next';
 import { getDb } from '@/lib/db';
 import { initializeSchema } from '@/lib/schema';
 import { seedDatabase } from '@/lib/seed';
+import { isIndexingEnabled } from '@/lib/site-visibility';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.seongkohn.com';
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  if (!isIndexingEnabled()) {
+    return [];
+  }
+
   initializeSchema();
   seedDatabase();
   const db = getDb();

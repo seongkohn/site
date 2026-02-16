@@ -1,10 +1,25 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import type { Type } from '@/lib/types';
 import { useLanguage } from '@/components/LanguageProvider';
 import { ta } from '@/lib/i18n-admin';
-import { SortableList, SortableTableRow, DragHandle } from '@/components/admin/SortableList';
+import { SortableTableRow, DragHandle } from '@/components/admin/SortableList';
 
 const emptyForm = { name_en: '', name_ko: '', sort_order: '' };
 
@@ -19,7 +34,27 @@ export default function TypesPage() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    fetchTypes();
+    let cancelled = false;
+
+    fetch('/api/types')
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) {
+          setTypes(data);
+        }
+      })
+      .catch(() => {
+        // no-op
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function fetchTypes() {
@@ -133,6 +168,35 @@ export default function TypesPage() {
     }
   }
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function reorderIds(ids: number[], activeId: number, overId: number): number[] {
+    const oldIndex = ids.indexOf(activeId);
+    const newIndex = ids.indexOf(overId);
+    if (oldIndex === -1 || newIndex === -1) return ids;
+
+    const next = [...ids];
+    next.splice(oldIndex, 1);
+    next.splice(newIndex, 0, activeId);
+    return next;
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const activeId = Number(active.id);
+    const overId = Number(over.id);
+    if (Number.isNaN(activeId) || Number.isNaN(overId)) return;
+
+    const ids = types.map((type) => type.id);
+    if (!ids.includes(activeId) || !ids.includes(overId)) return;
+    handleReorder(reorderIds(ids, activeId, overId));
+  }
+
   if (loading) {
     return <div className="text-sm text-gray-500">{ta('types.loadingTypes', lang)}</div>;
   }
@@ -199,66 +263,73 @@ export default function TypesPage() {
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="px-4 py-3 w-8">
-                <input
-                  type="checkbox"
-                  checked={types.length > 0 && selected.size === types.length}
-                  onChange={toggleSelectAll}
-                  className="rounded border-gray-300"
-                />
-              </th>
-              <th className="w-10"></th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('common.nameEn', lang)}</th>
-              <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('common.nameKo', lang)}</th>
-              <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('common.actions', lang)}</th>
-            </tr>
-          </thead>
-          <SortableList items={types} onReorder={handleReorder}>
-            <tbody>
-              {types.map((type) => (
-                <SortableTableRow key={type.id} id={type.id}>
-                  {({ listeners, attributes }) => (
-                    <>
-                      <td className="px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={selected.has(type.id)}
-                          onChange={() => toggleSelect(type.id)}
-                          className="rounded border-gray-300"
-                        />
-                      </td>
-                      <td className="px-2 py-3 text-center">
-                        <DragHandle listeners={listeners} attributes={attributes} />
-                      </td>
-                      <td className="px-4 py-3">{type.name_en}</td>
-                      <td className="px-4 py-3 text-gray-600">{type.name_ko}</td>
-                      <td className="px-4 py-3 text-right">
-                        <button onClick={() => startEdit(type)} className="text-brand-purple hover:text-brand-magenta text-xs mr-3">
-                          {ta('common.edit', lang)}
-                        </button>
-                        <button onClick={() => handleDelete(type.id)} className="text-red-500 hover:text-red-700 text-xs">
-                          {ta('common.delete', lang)}
-                        </button>
-                      </td>
-                    </>
-                  )}
-                </SortableTableRow>
-              ))}
-              {types.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">
-                    {ta('types.noTypes', lang)}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </SortableList>
-        </table>
-      </div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        modifiers={[restrictToVerticalAxis]}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="px-4 py-3 w-8">
+                  <input
+                    type="checkbox"
+                    checked={types.length > 0 && selected.size === types.length}
+                    onChange={toggleSelectAll}
+                    className="rounded border-gray-300"
+                  />
+                </th>
+                <th className="w-10"></th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('common.nameEn', lang)}</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('common.nameKo', lang)}</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('common.actions', lang)}</th>
+              </tr>
+            </thead>
+            <SortableContext items={types.map((type) => type.id)} strategy={verticalListSortingStrategy}>
+              <tbody>
+                {types.map((type) => (
+                  <SortableTableRow key={type.id} id={type.id}>
+                    {({ listeners, attributes }) => (
+                      <>
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={selected.has(type.id)}
+                            onChange={() => toggleSelect(type.id)}
+                            className="rounded border-gray-300"
+                          />
+                        </td>
+                        <td className="px-2 py-3 text-center">
+                          <DragHandle listeners={listeners} attributes={attributes} />
+                        </td>
+                        <td className="px-4 py-3">{type.name_en}</td>
+                        <td className="px-4 py-3 text-gray-600">{type.name_ko}</td>
+                        <td className="px-4 py-3 text-right">
+                          <button onClick={() => startEdit(type)} className="text-brand-purple hover:text-brand-magenta text-xs mr-3">
+                            {ta('common.edit', lang)}
+                          </button>
+                          <button onClick={() => handleDelete(type.id)} className="text-red-500 hover:text-red-700 text-xs">
+                            {ta('common.delete', lang)}
+                          </button>
+                        </td>
+                      </>
+                    )}
+                  </SortableTableRow>
+                ))}
+                {types.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">
+                      {ta('types.noTypes', lang)}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </SortableContext>
+          </table>
+        </div>
+      </DndContext>
     </div>
   );
 }

@@ -204,6 +204,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     { href: '/admin/brands', label: ta('sidebar.brands', lang) },
     { href: '/admin/featured', label: ta('sidebar.featured', lang) },
     { href: '/admin/hero-slides', label: ta('sidebar.heroSlides', lang) },
+    { href: '/admin/about', label: ta('sidebar.aboutPage', lang) },
     { href: '/admin/leads', label: ta('sidebar.leads', lang) },
     { href: '/admin/settings', label: ta('sidebar.settings', lang) },
   ];
