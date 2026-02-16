@@ -44,3 +44,20 @@ npm run build
 - PM2 config: `ecosystem.config.js`
 - Example Nginx config: `nginx.conf.example`
 - Deployment helper script: `deploy.sh`
+
+## One-Command Deploy (Local -> GitHub -> Server)
+
+Use:
+
+```bash
+./ship "short message about your change"
+```
+
+What `./ship` does:
+
+1. `git add -A` (stage all local changes)
+2. `git commit -m "..."` (save a commit)
+3. `git push origin main` (send commit to GitHub)
+4. `ssh ubuntu@3.36.56.15 "cd /var/www/seongkohn-site && bash deploy.sh"` (server pulls/builds/restarts)
+
+If there are no local file changes, it stops safely and does nothing.
