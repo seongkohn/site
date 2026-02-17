@@ -49,14 +49,24 @@ export async function GET(request: NextRequest) {
     }
 
     if (category) {
+      let catId = parseInt(category, 10);
+      if (isNaN(catId)) {
+        const row = db.prepare('SELECT id FROM categories WHERE slug = ?').get(category) as { id: number } | undefined;
+        catId = row?.id ?? -1;
+      }
       // Include subcategories: match the category itself or any child category
       conditions.push(`(p.category_id = ? OR p.category_id IN (SELECT id FROM categories WHERE parent_id = ?) OR p.category_id IN (SELECT id FROM categories WHERE parent_id IN (SELECT id FROM categories WHERE parent_id = ?)))`);
-      params.push(parseInt(category, 10), parseInt(category, 10), parseInt(category, 10));
+      params.push(catId, catId, catId);
     }
 
     if (type) {
+      let typeId = parseInt(type, 10);
+      if (isNaN(typeId)) {
+        const row = db.prepare('SELECT id FROM types WHERE slug = ?').get(type) as { id: number } | undefined;
+        typeId = row?.id ?? -1;
+      }
       conditions.push('p.type_id = ?');
-      params.push(parseInt(type, 10));
+      params.push(typeId);
     }
 
     if (brand) {

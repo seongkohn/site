@@ -124,12 +124,12 @@ const catIcons: Record<string, React.ReactNode> = {
 };
 
 const homeCats = [
-  { id: 'histology', nameKey: 'homeCats.histology', descKey: 'homeCats.histologyDesc' },
-  { id: 'cytology', nameKey: 'homeCats.cytology', descKey: 'homeCats.cytologyDesc' },
-  { id: 'digital-pathology', nameKey: 'homeCats.digitalPathology', descKey: 'homeCats.digitalPathologyDesc' },
-  { id: 'instruments', nameKey: 'homeCats.instruments', descKey: 'homeCats.instrumentsDesc' },
-  { id: 'consumables', nameKey: 'homeCats.consumables', descKey: 'homeCats.consumablesDesc' },
-  { id: 'reagents', nameKey: 'homeCats.reagents', descKey: 'homeCats.reagentsDesc' },
+  { id: 'histology', filterParam: 'category', filterValue: 'histology', nameKey: 'homeCats.histology', descKey: 'homeCats.histologyDesc' },
+  { id: 'cytology', filterParam: 'category', filterValue: 'cytology', nameKey: 'homeCats.cytology', descKey: 'homeCats.cytologyDesc' },
+  { id: 'digital-pathology', filterParam: 'category', filterValue: 'digital-pathology', nameKey: 'homeCats.digitalPathology', descKey: 'homeCats.digitalPathologyDesc' },
+  { id: 'instruments', filterParam: 'type', filterValue: 'instruments', nameKey: 'homeCats.instruments', descKey: 'homeCats.instrumentsDesc' },
+  { id: 'consumables', filterParam: 'type', filterValue: 'consumables', nameKey: 'homeCats.consumables', descKey: 'homeCats.consumablesDesc' },
+  { id: 'reagents', filterParam: 'type', filterValue: 'reagents', nameKey: 'homeCats.reagents', descKey: 'homeCats.reagentsDesc' },
 ];
 
 function FeaturedCarousel({ products, lang }: { products: Product[]; lang: 'en' | 'ko' }) {
@@ -373,7 +373,7 @@ export default function HomeClient({ featuredProducts, brands, heroSlides }: Hom
           {homeCats.map((cat) => (
             <Link
               key={cat.id}
-              href="/products"
+              href={`/products?${cat.filterParam}=${cat.filterValue}`}
               className="group bg-white border border-gray-200 rounded-md p-5 flex gap-3 items-start hover:border-brand-magenta/30 hover:shadow-md"
             >
               {catIcons[cat.id]}

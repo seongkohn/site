@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { getDb } from '@/lib/db';
 import { initializeSchema } from '@/lib/schema';
 import { seedDatabase } from '@/lib/seed';
@@ -106,12 +107,45 @@ function getData(searchParams: Record<string, string | undefined>) {
   };
 }
 
+function resolveSlugToId(db: ReturnType<typeof getDb>, table: 'categories' | 'types', slug: string): string | null {
+  const row = db.prepare(`SELECT id FROM ${table} WHERE slug = ?`).get(slug) as { id: number } | undefined;
+  return row ? String(row.id) : null;
+}
+
 export default async function ProductsPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const resolvedParams = await searchParams;
+
+  // Resolve slug-based params to integer IDs and redirect so the client-side
+  // sidebar highlighting (which compares String(cat.id)) works correctly.
+  const categoryParam = resolvedParams.category;
+  const typeParam = resolvedParams.type;
+  if ((categoryParam && isNaN(Number(categoryParam))) || (typeParam && isNaN(Number(typeParam)))) {
+    initializeSchema();
+    seedDatabase();
+    const db = getDb();
+    const params = new URLSearchParams();
+    if (categoryParam && isNaN(Number(categoryParam))) {
+      const id = resolveSlugToId(db, 'categories', categoryParam);
+      if (id) params.set('category', id);
+    } else if (categoryParam) {
+      params.set('category', categoryParam);
+    }
+    if (typeParam && isNaN(Number(typeParam))) {
+      const id = resolveSlugToId(db, 'types', typeParam);
+      if (id) params.set('type', id);
+    } else if (typeParam) {
+      params.set('type', typeParam);
+    }
+    if (resolvedParams.brand) params.set('brand', resolvedParams.brand);
+    if (resolvedParams.search) params.set('search', resolvedParams.search);
+    if (resolvedParams.page) params.set('page', resolvedParams.page);
+    redirect(`/products?${params.toString()}`);
+  }
+
   const data = getData(resolvedParams);
 
   return (
