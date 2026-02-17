@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
     const brand = searchParams.get('brand');
     const search = searchParams.get('search');
+    const sort = searchParams.get('sort') === 'alpha' ? 'alpha' : 'category';
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '12', 10)));
     const offset = (page - 1) * limit;
@@ -75,6 +76,31 @@ export async function GET(request: NextRequest) {
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const orderByClause = sort === 'alpha'
+      ? 'p.name_en COLLATE NOCASE ASC'
+      : `
+        COALESCE(c_grandparent.sort_order, c_parent.sort_order, c.sort_order, 2147483647),
+        COALESCE(c_grandparent.id, c_parent.id, c.id, 2147483647),
+        CASE
+          WHEN c_grandparent.id IS NOT NULL THEN c_parent.sort_order
+          WHEN c_parent.id IS NOT NULL THEN c.sort_order
+          ELSE -1
+        END,
+        CASE
+          WHEN c_grandparent.id IS NOT NULL THEN c_parent.id
+          WHEN c_parent.id IS NOT NULL THEN c.id
+          ELSE -1
+        END,
+        CASE
+          WHEN c_grandparent.id IS NOT NULL THEN c.sort_order
+          ELSE -1
+        END,
+        CASE
+          WHEN c_grandparent.id IS NOT NULL THEN c.id
+          ELSE -1
+        END,
+        p.name_en COLLATE NOCASE ASC
+      `;
 
     // Get total count
     const countRow = db.prepare(`
@@ -90,10 +116,12 @@ export async function GET(request: NextRequest) {
              m.name_en as brand_name_en, m.name_ko as brand_name_ko
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN categories c_parent ON c.parent_id = c_parent.id
+      LEFT JOIN categories c_grandparent ON c_parent.parent_id = c_grandparent.id
       LEFT JOIN types t ON p.type_id = t.id
       LEFT JOIN brands m ON p.brand_id = m.id
       ${whereClause}
-      ORDER BY p.name_en COLLATE NOCASE ASC
+      ORDER BY ${orderByClause}
       LIMIT ? OFFSET ?
     `).all(...params, limit, offset) as Product[];
 

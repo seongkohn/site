@@ -47,6 +47,7 @@ function getData(searchParams: Record<string, string | undefined>) {
   const typeId = searchParams.type;
   const brandId = searchParams.brand;
   const search = searchParams.search;
+  const sort = searchParams.sort === 'alpha' ? 'alpha' : 'category';
   const page = Math.max(1, parseInt(searchParams.page || '1', 10));
   const limit = 12;
   const offset = (page - 1) * limit;
@@ -77,6 +78,31 @@ function getData(searchParams: Record<string, string | undefined>) {
   }
 
   const whereClause = `WHERE ${conditions.join(' AND ')}`;
+  const orderByClause = sort === 'alpha'
+    ? 'p.name_en COLLATE NOCASE ASC'
+    : `
+      COALESCE(c_grandparent.sort_order, c_parent.sort_order, c.sort_order, 2147483647),
+      COALESCE(c_grandparent.id, c_parent.id, c.id, 2147483647),
+      CASE
+        WHEN c_grandparent.id IS NOT NULL THEN c_parent.sort_order
+        WHEN c_parent.id IS NOT NULL THEN c.sort_order
+        ELSE -1
+      END,
+      CASE
+        WHEN c_grandparent.id IS NOT NULL THEN c_parent.id
+        WHEN c_parent.id IS NOT NULL THEN c.id
+        ELSE -1
+      END,
+      CASE
+        WHEN c_grandparent.id IS NOT NULL THEN c.sort_order
+        ELSE -1
+      END,
+      CASE
+        WHEN c_grandparent.id IS NOT NULL THEN c.id
+        ELSE -1
+      END,
+      p.name_en COLLATE NOCASE ASC
+    `;
 
   const countRow = db.prepare(`
     SELECT COUNT(*) as total FROM products p ${whereClause}
@@ -89,10 +115,12 @@ function getData(searchParams: Record<string, string | undefined>) {
            m.name_en as brand_name_en, m.name_ko as brand_name_ko
     FROM products p
     LEFT JOIN categories c ON p.category_id = c.id
+    LEFT JOIN categories c_parent ON c.parent_id = c_parent.id
+    LEFT JOIN categories c_grandparent ON c_parent.parent_id = c_grandparent.id
     LEFT JOIN types t ON p.type_id = t.id
     LEFT JOIN brands m ON p.brand_id = m.id
     ${whereClause}
-    ORDER BY p.name_en COLLATE NOCASE ASC
+    ORDER BY ${orderByClause}
     LIMIT ? OFFSET ?
   `).all(...params, limit, offset) as Product[];
 
@@ -142,6 +170,7 @@ export default async function ProductsPage({
     }
     if (resolvedParams.brand) params.set('brand', resolvedParams.brand);
     if (resolvedParams.search) params.set('search', resolvedParams.search);
+    if (resolvedParams.sort === 'alpha') params.set('sort', 'alpha');
     if (resolvedParams.page) params.set('page', resolvedParams.page);
     redirect(`/products?${params.toString()}`);
   }

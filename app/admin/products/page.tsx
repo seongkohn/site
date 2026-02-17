@@ -36,7 +36,7 @@ export default function ProductsPage() {
 
   async function fetchProducts() {
     try {
-      const res = await fetch('/api/products?admin=1&limit=9999');
+      const res = await fetch('/api/products?admin=1&limit=9999&sort=alpha');
       const data = await res.json();
       setProducts(data.products || data);
     } catch {

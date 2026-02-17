@@ -88,10 +88,7 @@ export default function ContactPage() {
     <>
       {/* Hero Banner */}
       <section
-        className="py-20 text-center text-white"
-        style={{
-          background: 'linear-gradient(135deg, #1A1A2E 0%, #353360 45%, #85253B 100%)',
-        }}
+        className="page-hero-organic py-20 text-center text-white"
       >
         <div className="max-w-3xl mx-auto px-4">
           <h1

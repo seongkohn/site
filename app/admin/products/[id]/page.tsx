@@ -103,7 +103,7 @@ export default function ProductFormPage({ params }: { params: Promise<{ id: stri
       fetch('/api/categories').then((r) => r.json()),
       fetch('/api/types').then((r) => r.json()),
       fetch('/api/brands').then((r) => r.json()),
-      fetch('/api/products?admin=1&limit=9999').then((r) => r.json()),
+      fetch('/api/products?admin=1&limit=9999&sort=alpha').then((r) => r.json()),
       isNew ? Promise.resolve(null) : fetch(`/api/products/${id}`).then((r) => r.json()),
     ])
       .then(([cats, typs, brds, prods, productData]) => {

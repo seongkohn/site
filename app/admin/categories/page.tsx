@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -378,91 +378,89 @@ export default function CategoriesPage() {
                 <th className="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">{ta('common.actions', lang)}</th>
               </tr>
             </thead>
-            {/* Top-level categories with DnD */}
+            {/* Interleaved: each parent followed immediately by its children */}
             <SortableContext items={parentCategories.map((cat) => cat.id)} strategy={verticalListSortingStrategy}>
-              <tbody>
-                {parentCategories.map((parent) => {
-                  return (
-                    <SortableTableRow key={parent.id} id={parent.id}>
-                      {({ listeners, attributes }) => (
-                        <>
-                          <td className="px-4 py-3">
-                            <input
-                              type="checkbox"
-                              checked={selected.has(parent.id)}
-                              onChange={() => toggleSelect(parent.id)}
-                              className="rounded border-gray-300"
-                            />
-                          </td>
-                          <td className="px-2 py-3 text-center">
-                            <DragHandle listeners={listeners} attributes={attributes} />
-                          </td>
-                          <td className="px-4 py-3">{parent.name_en}</td>
-                          <td className="px-4 py-3 text-gray-600">{parent.name_ko}</td>
-                          <td className="px-4 py-3 text-gray-400 text-xs">--</td>
-                          <td className="px-4 py-3 text-right">
-                            <button onClick={() => startEdit(parent)} className="text-brand-purple hover:text-brand-magenta text-xs mr-3">
-                              {ta('common.edit', lang)}
-                            </button>
-                            <button onClick={() => handleDelete(parent.id)} className="text-red-500 hover:text-red-700 text-xs">
-                              {ta('common.delete', lang)}
-                            </button>
-                          </td>
-                        </>
-                      )}
-                    </SortableTableRow>
-                  );
-                })}
-              </tbody>
-            </SortableContext>
-            {/* Subcategory groups - each parent's children as a separate sortable group */}
-            {parentCategories.map((parent) => {
-              const children = childrenByParent.get(parent.id);
-              if (!children || children.length === 0) return null;
-              return (
-                <SortableContext
-                  key={`children-${parent.id}`}
-                  items={children.map((cat) => cat.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <tbody>
-                    {children.map((cat) => (
-                      <SortableTableRow key={cat.id} id={cat.id}>
+              {parentCategories.map((parent) => {
+                const children = childrenByParent.get(parent.id) || [];
+                return (
+                  <React.Fragment key={parent.id}>
+                    <tbody>
+                      <SortableTableRow id={parent.id}>
                         {({ listeners, attributes }) => (
                           <>
                             <td className="px-4 py-3">
                               <input
                                 type="checkbox"
-                                checked={selected.has(cat.id)}
-                                onChange={() => toggleSelect(cat.id)}
+                                checked={selected.has(parent.id)}
+                                onChange={() => toggleSelect(parent.id)}
                                 className="rounded border-gray-300"
                               />
                             </td>
                             <td className="px-2 py-3 text-center">
                               <DragHandle listeners={listeners} attributes={attributes} />
                             </td>
-                            <td className="px-4 py-3">
-                              <span className="text-gray-300 mr-1">{'\u2014'}</span>
-                              {cat.name_en}
-                            </td>
-                            <td className="px-4 py-3 text-gray-600">{cat.name_ko}</td>
-                            <td className="px-4 py-3 text-gray-400 text-xs">{cat.parent_name_en || parent.name_en}</td>
+                            <td className="px-4 py-3">{parent.name_en}</td>
+                            <td className="px-4 py-3 text-gray-600">{parent.name_ko}</td>
+                            <td className="px-4 py-3 text-gray-400 text-xs">--</td>
                             <td className="px-4 py-3 text-right">
-                              <button onClick={() => startEdit(cat)} className="text-brand-purple hover:text-brand-magenta text-xs mr-3">
+                              <button onClick={() => startEdit(parent)} className="text-brand-purple hover:text-brand-magenta text-xs mr-3">
                                 {ta('common.edit', lang)}
                               </button>
-                              <button onClick={() => handleDelete(cat.id)} className="text-red-500 hover:text-red-700 text-xs">
+                              <button onClick={() => handleDelete(parent.id)} className="text-red-500 hover:text-red-700 text-xs">
                                 {ta('common.delete', lang)}
                               </button>
                             </td>
                           </>
                         )}
                       </SortableTableRow>
-                    ))}
-                  </tbody>
-                </SortableContext>
-              );
-            })}
+                    </tbody>
+                    {children.length > 0 && (
+                      <SortableContext
+                        key={`children-${parent.id}`}
+                        items={children.map((cat) => cat.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <tbody>
+                          {children.map((cat) => (
+                            <SortableTableRow key={cat.id} id={cat.id}>
+                              {({ listeners, attributes }) => (
+                                <>
+                                  <td className="px-4 py-3">
+                                    <input
+                                      type="checkbox"
+                                      checked={selected.has(cat.id)}
+                                      onChange={() => toggleSelect(cat.id)}
+                                      className="rounded border-gray-300"
+                                    />
+                                  </td>
+                                  <td className="px-2 py-3 text-center">
+                                    <DragHandle listeners={listeners} attributes={attributes} />
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <span className="text-gray-300 mr-1">{'\u2014'}</span>
+                                    {cat.name_en}
+                                  </td>
+                                  <td className="px-4 py-3 text-gray-600">{cat.name_ko}</td>
+                                  <td className="px-4 py-3 text-gray-400 text-xs">{cat.parent_name_en || parent.name_en}</td>
+                                  <td className="px-4 py-3 text-right">
+                                    <button onClick={() => startEdit(cat)} className="text-brand-purple hover:text-brand-magenta text-xs mr-3">
+                                      {ta('common.edit', lang)}
+                                    </button>
+                                    <button onClick={() => handleDelete(cat.id)} className="text-red-500 hover:text-red-700 text-xs">
+                                      {ta('common.delete', lang)}
+                                    </button>
+                                  </td>
+                                </>
+                              )}
+                            </SortableTableRow>
+                          ))}
+                        </tbody>
+                      </SortableContext>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </SortableContext>
             {categories.length === 0 && (
               <tbody>
                 <tr>

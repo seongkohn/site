@@ -25,22 +25,19 @@ export function localize(lang: Lang, en: string | null | undefined, ko: string |
   return ko || en || '';
 }
 
-function getInitialLang(): Lang {
-  if (typeof window === 'undefined') return 'en';
-  const saved = localStorage.getItem('lang') as Lang | null;
-  if (saved === 'en' || saved === 'ko') return saved;
-  if (typeof navigator !== 'undefined') {
-    return navigator.language.toLowerCase().startsWith('ko') ? 'ko' : 'en';
-  }
-  return 'en';
-}
-
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(getInitialLang);
+export function LanguageProvider({
+  children,
+  initialLang = 'en',
+}: {
+  children: ReactNode;
+  initialLang?: Lang;
+}) {
+  const [lang, setLangState] = useState<Lang>(initialLang);
 
   function setLang(newLang: Lang) {
     setLangState(newLang);
     localStorage.setItem('lang', newLang);
+    document.cookie = `lang=${newLang}; path=/; max-age=31536000; samesite=lax`;
   }
 
   function toggleLang() {

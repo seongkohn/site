@@ -46,6 +46,7 @@ export default function ProductsClient({
   const activeType = searchParams.get('type') || '';
   const activeBrand = searchParams.get('brand') || '';
   const activeSearch = searchParams.get('search') || '';
+  const activeSort = searchParams.get('sort') === 'alpha' ? 'alpha' : 'category';
   const activePage = searchParams.get('page') || '1';
 
   // Expand ancestor categories if a subcategory is active
@@ -111,10 +112,11 @@ export default function ProductsClient({
     if (activeType) params.set('type', activeType);
     if (activeBrand) params.set('brand', activeBrand);
     if (activeSearch) params.set('search', activeSearch);
+    if (activeSort === 'alpha') params.set('sort', 'alpha');
     if (activePage && activePage !== '1') params.set('page', activePage);
 
     fetchProducts(`/products?${params.toString()}`);
-  }, [activeCategory, activeType, activeBrand, activeSearch, activePage, fetchProducts]);
+  }, [activeCategory, activeType, activeBrand, activeSearch, activeSort, activePage, fetchProducts]);
 
   function handleFilter(key: string, value: string) {
     const currentValue = searchParams.get(key) || '';
@@ -125,6 +127,10 @@ export default function ProductsClient({
 
   function handleClearFilters() {
     router.push('/products', { scroll: false });
+  }
+
+  function handleSortChange(value: 'category' | 'alpha') {
+    router.push(buildUrl({ sort: value === 'alpha' ? 'alpha' : '' }), { scroll: false });
   }
 
   function toggleCategoryExpand(id: number) {
@@ -382,10 +388,25 @@ export default function ProductsClient({
 
         {/* Product grid area */}
         <div className="flex-1 min-w-0">
-          {/* Product count */}
-          <p className="text-sm text-gray-500 mb-4">
-            {total} {t('products.nProducts', lang)}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <p className="text-sm text-gray-500">
+              {total} {t('products.nProducts', lang)}
+            </p>
+            <div className="flex items-center gap-2">
+              <label htmlFor="sort" className="text-sm text-gray-600">
+                {t('products.sortBy', lang)}
+              </label>
+              <select
+                id="sort"
+                value={activeSort}
+                onChange={(e) => handleSortChange(e.target.value as 'category' | 'alpha')}
+                className="border border-gray-200 rounded px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-magenta"
+              >
+                <option value="category">{t('products.sortByCategory', lang)}</option>
+                <option value="alpha">{t('products.sortByAlpha', lang)}</option>
+              </select>
+            </div>
+          </div>
 
           {/* Loading overlay */}
           {loading && (
