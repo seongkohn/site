@@ -114,17 +114,12 @@ export const translations = {
     invalidEmail: { en: 'Please enter a valid email address.', ko: '올바른 이메일 주소를 입력해 주세요.' },
     requiredMessage: { en: 'Please enter a message.', ko: '메시지를 입력해 주세요.' },
     address: { en: 'Address', ko: '주소' },
-    addressValue: { en: '38, Hakdong-ro 50-gil, Gangnam-gu, Seoul 06100', ko: '서울 강남구 학동로50길 38, 06100' },
-    phoneValue: { en: '+82-2-540-3311', ko: '02-540-3311' },
-    emailValue: { en: 'labsales@seongkohn.com', ko: 'labsales@seongkohn.com' },
   },
   footer: {
     tagline: { en: 'Trusted partner for pathology laboratories since 1988.', ko: '1988년 이래 병리 검사실의 신뢰받는 파트너.' },
     contact: { en: 'CONTACT', ko: '연락처' },
     products: { en: 'PRODUCTS', ko: '제품' },
     rights: { en: 'All rights reserved.', ko: 'All rights reserved.' },
-    location: { en: '38, Hakdong-ro 50-gil, Gangnam-gu, Seoul 06100, Korea', ko: '서울 강남구 학동로50길 38, 06100' },
-    phone: { en: '+82-2-540-3311', ko: '02-540-3311' },
   },
   common: {
     home: { en: 'Home', ko: '홈' },

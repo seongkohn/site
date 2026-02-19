@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import DOMPurify from 'dompurify';
 import { useLanguage, localize } from '@/components/LanguageProvider';
 import { t } from '@/lib/i18n';
 import Breadcrumbs from '@/components/Breadcrumbs';
@@ -333,7 +334,7 @@ export default function ProductDetailClient({ product, relatedProducts, variants
               {detail ? (
                 <div
                   className="prose prose-sm max-w-none text-gray-700 break-words overflow-hidden"
-                  dangerouslySetInnerHTML={{ __html: detail }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(detail) }}
                 />
               ) : description ? (
                 <p className="text-gray-700 leading-relaxed">{description}</p>

@@ -26,7 +26,9 @@ export async function GET() {
     for (const row of rows) {
       info[row.key] = row.value;
     }
-    return NextResponse.json(info);
+    return NextResponse.json(info, {
+      headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' },
+    });
   } catch {
     return NextResponse.json({});
   }

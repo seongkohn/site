@@ -16,7 +16,9 @@ export async function GET() {
   const db = getDb();
 
   const brands = db.prepare('SELECT * FROM brands ORDER BY sort_order, name_en').all();
-  return NextResponse.json(brands);
+  return NextResponse.json(brands, {
+    headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' },
+  });
 }
 
 export async function POST(request: NextRequest) {

@@ -163,6 +163,8 @@ export default function SearchBar() {
             <button
               className="absolute top-2 left-0 w-full h-[36px] flex items-center gap-2 px-3.5 text-[13px] font-semibold text-gray-700 bg-white"
               type="button"
+              aria-expanded={isHome || dropdownOpen}
+              aria-haspopup="true"
             >
               <svg className="w-4 h-4 flex-shrink-0 text-gray-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                 <path d="M3 12h18M3 6h18M3 18h18" />
@@ -215,12 +217,15 @@ export default function SearchBar() {
               {showSuggestions && suggestions.length > 0 && (
                 <div
                   ref={suggestionsRef}
+                  role="listbox"
+                  aria-label={lang === 'en' ? 'Search suggestions' : '검색 제안'}
                   className="absolute top-full left-0 right-0 bg-white border border-gray-200 border-t-0 shadow-lg z-50 max-h-80 overflow-y-auto"
                 >
                   {suggestions.map((product) => (
                     <button
                       key={product.id}
                       type="button"
+                      role="option"
                       onClick={() => handleSuggestionClick(product)}
                       className="w-full text-left px-3 py-2.5 border-b border-gray-100 hover:bg-brand-pale transition flex items-center gap-3"
                     >
@@ -257,7 +262,7 @@ export default function SearchBar() {
                 </div>
               )}
               {showSuggestions && searchQuery.trim() && suggestions.length === 0 && (
-                <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 border-t-0 shadow-lg z-50 px-3 py-3">
+                <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 border-t-0 shadow-lg z-50 px-3 py-3" aria-live="polite">
                   <div className="text-sm text-gray-500">
                     {lang === 'en' ? 'No products found' : '상품을 찾을 수 없습니다'}
                   </div>
@@ -266,6 +271,7 @@ export default function SearchBar() {
             </div>
             <button
               type="submit"
+              aria-label={lang === 'en' ? 'Search' : '검색'}
               className="h-full px-3 bg-white flex items-center justify-center text-gray-500 hover:text-brand-magenta transition border-l border-gray-200"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">

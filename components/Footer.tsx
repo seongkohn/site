@@ -1,21 +1,32 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useLanguage } from './LanguageProvider';
 import { useSiteSettings } from './SiteSettingsProvider';
 import { t } from '@/lib/i18n';
 
+interface Category {
+  id: number;
+  name_en: string;
+  name_ko: string;
+  slug: string;
+  parent_id: number | null;
+}
+
 export default function Footer() {
   const { lang } = useLanguage();
   const settings = useSiteSettings();
+  const [categories, setCategories] = useState<Category[]>([]);
 
-  const categories = [
-    { en: 'Histology', ko: '조직병리' },
-    { en: 'Cytology', ko: '세포병리' },
-    { en: 'Digital Pathology', ko: '디지털 병리' },
-    { en: 'Immunohistochemistry', ko: '면역조직화학' },
-    { en: 'Molecular Pathology', ko: '분자병리' },
-  ];
+  useEffect(() => {
+    fetch('/api/categories')
+      .then((res) => res.json())
+      .then((data: Category[]) => {
+        setCategories(data.filter((c) => c.parent_id === null));
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <footer className="footer-organic text-white">
@@ -35,8 +46,8 @@ export default function Footer() {
             </h4>
             <div className="text-sm text-white/70 space-y-2">
               <p>{lang === 'ko' ? settings.company_address_ko : settings.company_address_en}</p>
-              <p>{settings.company_phone}</p>
-              <p>{settings.company_email}</p>
+              <p><a href={`tel:${settings.company_phone.replace(/[^+\d]/g, '')}`} className="hover:text-white transition">{settings.company_phone}</a></p>
+              <p><a href={`mailto:${settings.company_email}`} className="hover:text-white transition">{settings.company_email}</a></p>
             </div>
           </div>
           <div>
@@ -45,15 +56,15 @@ export default function Footer() {
             </h4>
             <nav className="text-sm text-white/70 space-y-2">
               {categories.map((cat) => (
-                <Link key={cat.en} href="/products" className="block hover:text-white transition">
-                  {lang === 'en' ? cat.en : cat.ko}
+                <Link key={cat.id} href={`/products?category=${cat.slug}`} className="block hover:text-white transition">
+                  {lang === 'ko' ? (cat.name_ko || cat.name_en) : cat.name_en}
                 </Link>
               ))}
             </nav>
           </div>
         </div>
         <div className="mt-8 pt-6 border-t border-white/20 flex flex-col sm:flex-row justify-between items-center text-sm text-white/50">
-          <p>&copy; {new Date().getFullYear()} Seongkohn Traders Corporation</p>
+          <p>&copy; {new Date().getFullYear()} {lang === 'ko' ? settings.company_name_ko : settings.company_name_en}</p>
           <Link href="/admin" className="mt-2 sm:mt-0 hover:text-white/70 transition">Admin</Link>
         </div>
       </div>

@@ -123,7 +123,11 @@ export default function ContactPage() {
                 <h3 className="font-semibold text-gray-800 mb-1">
                   {t('contact.phone', lang)}
                 </h3>
-                <p className="text-gray-600">{settings.company_phone}</p>
+                <p className="text-gray-600">
+                  <a href={`tel:${settings.company_phone.replace(/[^+\d]/g, '')}`} className="text-brand-magenta hover:underline">
+                    {settings.company_phone}
+                  </a>
+                </p>
               </div>
 
               <div>
@@ -163,6 +167,8 @@ export default function ContactPage() {
                 <input
                   type="text"
                   value={formData.name}
+                  aria-describedby={errors.name ? 'error-name' : undefined}
+                  aria-invalid={!!errors.name}
                   onChange={(e) => {
                     setFormData({ ...formData, name: e.target.value });
                     setErrors((prev) => {
@@ -173,7 +179,7 @@ export default function ContactPage() {
                   }}
                   className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-magenta focus:border-transparent ${errors.name ? 'border-red-400' : 'border-gray-300'}`}
                 />
-                {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+                {errors.name && <p id="error-name" role="alert" className="text-red-500 text-xs mt-1">{errors.name}</p>}
               </div>
 
               <div>
@@ -183,6 +189,8 @@ export default function ContactPage() {
                 <input
                   type="text"
                   value={formData.email}
+                  aria-describedby={errors.email ? 'error-email' : undefined}
+                  aria-invalid={!!errors.email}
                   onChange={(e) => {
                     setFormData({ ...formData, email: e.target.value });
                     setErrors((prev) => {
@@ -202,6 +210,8 @@ export default function ContactPage() {
                 <input
                   type="tel"
                   value={formData.phone}
+                  aria-describedby={errors.email ? 'error-email' : undefined}
+                  aria-invalid={!!errors.email}
                   onChange={(e) => {
                     setFormData({ ...formData, phone: e.target.value });
                     setErrors((prev) => {
@@ -212,7 +222,7 @@ export default function ContactPage() {
                   }}
                   className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-magenta focus:border-transparent ${errors.email ? 'border-red-400' : 'border-gray-300'}`}
                 />
-                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+                {errors.email && <p id="error-email" role="alert" className="text-red-500 text-xs mt-1">{errors.email}</p>}
               </div>
 
               <div>
@@ -234,6 +244,8 @@ export default function ContactPage() {
                 <textarea
                   rows={5}
                   value={formData.message}
+                  aria-describedby={errors.message ? 'error-message' : undefined}
+                  aria-invalid={!!errors.message}
                   onChange={(e) => {
                     setFormData({ ...formData, message: e.target.value });
                     setErrors((prev) => {
@@ -244,7 +256,7 @@ export default function ContactPage() {
                   }}
                   className={`w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-magenta focus:border-transparent resize-vertical ${errors.message ? 'border-red-400' : 'border-gray-300'}`}
                 />
-                {errors.message && <p className="text-red-500 text-xs mt-1">{errors.message}</p>}
+                {errors.message && <p id="error-message" role="alert" className="text-red-500 text-xs mt-1">{errors.message}</p>}
               </div>
 
               <Turnstile onVerify={handleTurnstile} />
@@ -258,12 +270,12 @@ export default function ContactPage() {
               </button>
 
               {status === 'success' && (
-                <p className="text-green-600 text-sm font-medium">
+                <p role="status" aria-live="polite" className="text-green-600 text-sm font-medium">
                   {t('contact.success', lang)}
                 </p>
               )}
               {status === 'error' && (
-                <p className="text-red-600 text-sm font-medium">
+                <p role="alert" aria-live="assertive" className="text-red-600 text-sm font-medium">
                   {t('contact.error', lang)}
                 </p>
               )}

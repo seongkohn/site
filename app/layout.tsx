@@ -9,6 +9,9 @@ import Footer from "@/components/Footer";
 import { isIndexingEnabled } from "@/lib/site-visibility";
 import { cookies } from "next/headers";
 import type { Lang } from "@/lib/i18n";
+import { getDb } from "@/lib/db";
+import { initializeSchema } from "@/lib/schema";
+import { seedDatabase } from "@/lib/seed";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -26,6 +29,22 @@ const notoSansKR = Noto_Sans_KR({
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.seongkohn.com";
 const INDEXING_ENABLED = isIndexingEnabled();
+
+function getSiteSettings(): Record<string, string> {
+  try {
+    initializeSchema();
+    seedDatabase();
+    const db = getDb();
+    const rows = db.prepare('SELECT key, value FROM settings').all() as { key: string; value: string }[];
+    const settings: Record<string, string> = {};
+    for (const row of rows) {
+      settings[row.key] = row.value;
+    }
+    return settings;
+  } catch {
+    return {};
+  }
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -96,6 +115,7 @@ export default async function RootLayout({
   const cookieStore = await cookies();
   const cookieLang = cookieStore.get("lang")?.value;
   const initialLang: Lang = cookieLang === "ko" ? "ko" : "en";
+  const siteSettings = getSiteSettings();
 
   return (
     <html lang="en" suppressHydrationWarning className={`${inter.variable} ${notoSansKR.variable}`}>
@@ -114,8 +134,13 @@ export default async function RootLayout({
               foundingDate: "1988",
               address: {
                 "@type": "PostalAddress",
+                streetAddress: siteSettings.company_address_en || "38, Hakdong-ro 50-gil, Gangnam-gu",
+                addressLocality: "Seoul",
+                postalCode: "06100",
                 addressCountry: "KR",
               },
+              telephone: siteSettings.company_phone || "+82-2-540-3311",
+              email: siteSettings.company_email || "labsales@seongkohn.com",
               sameAs: [],
             }),
           }}

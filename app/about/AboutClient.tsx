@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useLanguage } from '@/components/LanguageProvider';
+import { useSiteSettings } from '@/components/SiteSettingsProvider';
 import { t, type Lang } from '@/lib/i18n';
 import type { AboutTimelineEntry } from '@/lib/about-timeline';
 
@@ -161,6 +162,7 @@ function renderWhyIcon(icon: WhyChooseIcon) {
 
 export default function AboutClient({ timelineEntries }: AboutClientProps) {
   const { lang } = useLanguage();
+  const settings = useSiteSettings();
 
   return (
     <>
@@ -331,7 +333,7 @@ export default function AboutClient({ timelineEntries }: AboutClientProps) {
               {lang === 'ko' ? '문의하기' : 'Contact Sales'}
             </Link>
             <a
-              href={`mailto:${t('contact.emailValue', lang)}`}
+              href={`mailto:${settings.company_email}`}
               className="inline-block border border-white/40 text-white font-semibold px-5 py-2.5 rounded-md hover:bg-white/10 transition"
             >
               {lang === 'ko' ? '이메일 보내기' : 'Email Us'}
