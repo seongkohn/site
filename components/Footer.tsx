@@ -2,10 +2,12 @@
 
 import Link from 'next/link';
 import { useLanguage } from './LanguageProvider';
+import { useSiteSettings } from './SiteSettingsProvider';
 import { t } from '@/lib/i18n';
 
 export default function Footer() {
   const { lang } = useLanguage();
+  const settings = useSiteSettings();
 
   const categories = [
     { en: 'Histology', ko: '조직병리' },
@@ -32,9 +34,9 @@ export default function Footer() {
               {t('footer.contact', lang)}
             </h4>
             <div className="text-sm text-white/70 space-y-2">
-              <p>{t('footer.location', lang)}</p>
-              <p>{t('footer.phone', lang)}</p>
-              <p>labsales@seongkohn.com</p>
+              <p>{lang === 'ko' ? settings.company_address_ko : settings.company_address_en}</p>
+              <p>{settings.company_phone}</p>
+              <p>{settings.company_email}</p>
             </div>
           </div>
           <div>

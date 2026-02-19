@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/components/LanguageProvider";
+import { SiteSettingsProvider } from "@/components/SiteSettingsProvider";
 import Header from "@/components/Header";
 import SearchBar from "@/components/SearchBar";
 import Footer from "@/components/Footer";
@@ -120,12 +121,14 @@ export default async function RootLayout({
           }}
         />
         <LanguageProvider initialLang={initialLang}>
+        <SiteSettingsProvider>
           <div className="min-h-screen flex flex-col">
             <Header />
             <SearchBar />
             <main className="flex-1">{children}</main>
             <Footer />
           </div>
+        </SiteSettingsProvider>
         </LanguageProvider>
       </body>
     </html>

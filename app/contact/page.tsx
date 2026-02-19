@@ -3,6 +3,7 @@
 import { useState, useCallback, FormEvent } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/components/LanguageProvider';
+import { useSiteSettings } from '@/components/SiteSettingsProvider';
 import { t } from '@/lib/i18n';
 import Turnstile from '@/components/Turnstile';
 import GoogleMap from '@/components/GoogleMap';
@@ -32,6 +33,7 @@ function buildQuoteMessage(params: URLSearchParams): string {
 
 export default function ContactPage() {
   const { lang } = useLanguage();
+  const settings = useSiteSettings();
   const searchParams = useSearchParams();
   const initialMessage = buildQuoteMessage(searchParams);
   const [formData, setFormData] = useState({
@@ -114,14 +116,14 @@ export default function ContactPage() {
                 <h3 className="font-semibold text-gray-800 mb-1">
                   {t('contact.address', lang)}
                 </h3>
-                <p className="text-gray-600">{t('contact.addressValue', lang)}</p>
+                <p className="text-gray-600">{lang === 'ko' ? settings.company_address_ko : settings.company_address_en}</p>
               </div>
 
               <div>
                 <h3 className="font-semibold text-gray-800 mb-1">
                   {t('contact.phone', lang)}
                 </h3>
-                <p className="text-gray-600">{t('contact.phoneValue', lang)}</p>
+                <p className="text-gray-600">{settings.company_phone}</p>
               </div>
 
               <div>
@@ -130,10 +132,10 @@ export default function ContactPage() {
                 </h3>
                 <p className="text-gray-600">
                   <a
-                    href={`mailto:${t('contact.emailValue', lang)}`}
+                    href={`mailto:${settings.company_email}`}
                     className="text-brand-magenta hover:underline"
                   >
-                    {t('contact.emailValue', lang)}
+                    {settings.company_email}
                   </a>
                 </p>
               </div>
