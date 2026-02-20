@@ -118,44 +118,56 @@ function getTimelineText(entry: AboutTimelineEntry, lang: Lang, field: 'title' |
 
 function renderWhyIcon(icon: WhyChooseIcon) {
   const baseClass = 'h-8 w-8 text-brand-magenta';
+  const sharedProps = {
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.8,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    className: baseClass,
+  };
 
   if (icon === 'expertise') {
     return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={baseClass}>
-        <path d="M6 8a6 6 0 1 1 12 0v4a6 6 0 1 1-12 0V8Z" />
-        <path d="M12 6v8" />
-        <path d="M9 10h6" />
+      <svg {...sharedProps}>
+        <path d="M6 20h12" />
+        <path d="M9 20v-2.5a4.5 4.5 0 0 0-4.5-4.5H13" />
+        <path d="m10 7 3.5 3.5" />
+        <path d="m13.5 6.5 4 4" />
+        <path d="M9 7.5 7.5 9a2.8 2.8 0 0 0 0 4l1.3 1.3" />
+        <path d="M13 13h4" />
       </svg>
     );
   }
 
   if (icon === 'support') {
     return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={baseClass}>
+      <svg {...sharedProps}>
         <path d="M4 12a8 8 0 1 1 16 0" />
-        <path d="M6 12v3a2 2 0 0 0 2 2h2" />
-        <path d="M18 12v3a2 2 0 0 1-2 2h-2" />
-        <path d="M10 18h4" />
+        <rect x="3" y="12" width="3" height="6" rx="1" />
+        <rect x="18" y="12" width="3" height="6" rx="1" />
+        <path d="M9 18h6a2 2 0 0 1-2 2h-2" />
       </svg>
     );
   }
 
   if (icon === 'supply') {
     return (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={baseClass}>
-        <path d="M3 7h18" />
-        <path d="M5 7v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7" />
-        <path d="M9 11h6" />
-        <path d="M9 15h4" />
+      <svg {...sharedProps}>
+        <path d="m3 7.5 9-4.5 9 4.5-9 4.5-9-4.5Z" />
+        <path d="M3 7.5v9L12 21l9-4.5v-9" />
+        <path d="M12 12v9" />
       </svg>
     );
   }
 
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={baseClass}>
-      <path d="M8 12a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm8 6a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z" />
-      <path d="m10.5 9.5 3 3" />
-      <path d="m13.5 9.5-3 3" />
+    <svg {...sharedProps}>
+      <circle cx="8" cy="8" r="3" />
+      <circle cx="16" cy="8" r="3" />
+      <path d="M3 19a5 5 0 0 1 10 0" />
+      <path d="M11 19a5 5 0 0 1 10 0" />
     </svg>
   );
 }
