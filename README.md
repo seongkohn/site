@@ -24,6 +24,7 @@ Create `.env.local` with the values you use in your environment.
 Common keys used by this app:
 
 - `JWT_SECRET`
+- `ADMIN_SETUP_TOKEN` (required in production only when creating the very first admin user)
 - `NEXT_PUBLIC_SITE_URL`
 - `SITE_INDEXING_ENABLED`
 - `BREVO_API_KEY`

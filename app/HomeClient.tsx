@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useLanguage, localize } from '@/components/LanguageProvider';
 import { t } from '@/lib/i18n';
+import { sanitizePublicUrl } from '@/lib/url-safety';
 import ProductCard from '@/components/ProductCard';
 import type { Product, Brand, HeroSlide } from '@/lib/types';
 
@@ -266,6 +267,7 @@ export default function HomeClient({ featuredProducts, brands, heroSlides }: Hom
     const isRight = currentSlide.text_align === 'right';
     const title = localize(lang, currentSlide.title_en, currentSlide.title_ko);
     const subtitle = localize(lang, currentSlide.subtitle_en, currentSlide.subtitle_ko);
+    const linkUrl = sanitizePublicUrl(currentSlide.link_url, { allowRelative: true });
 
     const content = (
       <div className={isDark ? 'text-black' : 'text-white'}>
@@ -278,9 +280,9 @@ export default function HomeClient({ featuredProducts, brands, heroSlides }: Hom
       </div>
     );
 
-    if (currentSlide.link_url) {
+    if (linkUrl) {
       return (
-        <Link href={currentSlide.link_url} className={`relative h-full flex items-center px-8 md:px-12 ${isRight ? 'justify-end' : 'justify-start'}`}>
+        <Link href={linkUrl} className={`relative h-full flex items-center px-8 md:px-12 ${isRight ? 'justify-end' : 'justify-start'}`}>
           {content}
         </Link>
       );

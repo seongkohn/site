@@ -43,7 +43,11 @@ export default function Turnstile({ onVerify }: TurnstileProps) {
   useEffect(() => {
     if (enabled !== true) return;
 
-    let timeoutId: ReturnType<typeof setTimeout>;
+    const timeoutId = setTimeout(() => {
+      if (!widgetIdRef.current) {
+        setLoadError(true);
+      }
+    }, 10000);
 
     function renderWidget() {
       if (!containerRef.current || !window.turnstile || widgetIdRef.current) return;
@@ -55,13 +59,6 @@ export default function Turnstile({ onVerify }: TurnstileProps) {
         'error-callback': () => setLoadError(true),
       });
     }
-
-    // If Turnstile doesn't load within 10s, show error and let the user bypass
-    timeoutId = setTimeout(() => {
-      if (!widgetIdRef.current) {
-        setLoadError(true);
-      }
-    }, 10000);
 
     if (window.turnstile) {
       renderWidget();

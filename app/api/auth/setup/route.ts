@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { getDb } from '@/lib/db';
 import { initializeSchema } from '@/lib/schema';
 import { seedDatabase } from '@/lib/seed';
@@ -15,9 +16,22 @@ function hasAdminUsers(): boolean {
   return row.count > 0;
 }
 
+function secureTokenEqual(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a);
+  const bBuf = Buffer.from(b);
+  if (aBuf.length !== bBuf.length) return false;
+  return crypto.timingSafeEqual(aBuf, bBuf);
+}
+
 export async function GET() {
   ensureDb();
-  return NextResponse.json({ needsSetup: !hasAdminUsers() });
+  const needsSetup = !hasAdminUsers();
+  const setupTokenRequired = process.env.NODE_ENV === 'production' && needsSetup;
+  return NextResponse.json({
+    needsSetup,
+    setupTokenRequired,
+    setupTokenConfigured: setupTokenRequired ? Boolean(process.env.ADMIN_SETUP_TOKEN) : true,
+  });
 }
 
 export async function POST(request: Request) {
@@ -28,7 +42,23 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { username, password } = await request.json();
+    const body = await request.json() as { username?: string; password?: string; setupToken?: string };
+    const username = body.username || '';
+    const password = body.password || '';
+    const providedSetupToken = request.headers.get('x-setup-token') || body.setupToken || '';
+
+    if (process.env.NODE_ENV === 'production') {
+      const configuredSetupToken = process.env.ADMIN_SETUP_TOKEN || '';
+      if (!configuredSetupToken) {
+        return NextResponse.json(
+          { error: 'Admin setup is disabled until ADMIN_SETUP_TOKEN is configured on the server' },
+          { status: 503 }
+        );
+      }
+      if (!secureTokenEqual(providedSetupToken, configuredSetupToken)) {
+        return NextResponse.json({ error: 'Invalid setup token' }, { status: 403 });
+      }
+    }
 
     if (!username || username.length < 3) {
       return NextResponse.json({ error: 'Username must be at least 3 characters' }, { status: 400 });

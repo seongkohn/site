@@ -3,6 +3,7 @@ import { getDb } from '@/lib/db';
 import { initializeSchema } from '@/lib/schema';
 import { seedDatabase } from '@/lib/seed';
 import { getAdminUser } from '@/lib/auth';
+import { sanitizePublicUrl } from '@/lib/url-safety';
 import { revalidatePath } from 'next/cache';
 
 function ensureDb() {
@@ -23,6 +24,10 @@ export async function PUT(
   const db = getDb();
   const { id } = await params;
   const body = await request.json();
+  const linkUrl = sanitizePublicUrl(body.link_url, { allowRelative: true });
+  if (body.link_url && !linkUrl) {
+    return NextResponse.json({ error: 'Invalid link URL' }, { status: 400 });
+  }
 
   db.prepare(`
     UPDATE hero_slides SET title_en = ?, title_ko = ?, subtitle_en = ?, subtitle_ko = ?,
@@ -31,7 +36,7 @@ export async function PUT(
   `).run(
     body.title_en, body.title_ko,
     body.subtitle_en || null, body.subtitle_ko || null,
-    body.image || null, body.link_url || null,
+    body.image || null, linkUrl,
     body.text_color || 'light', body.text_align || 'left',
     body.is_active ?? 1, body.sort_order || 0,
     parseInt(id, 10)

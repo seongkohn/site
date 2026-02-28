@@ -3,6 +3,7 @@ import { getDb } from '@/lib/db';
 import { initializeSchema } from '@/lib/schema';
 import { seedDatabase } from '@/lib/seed';
 import { getAdminUser } from '@/lib/auth';
+import { sanitizePublicUrl } from '@/lib/url-safety';
 import { revalidatePath } from 'next/cache';
 import slugify from 'slugify';
 
@@ -35,6 +36,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'name_en is required' }, { status: 400 });
   }
 
+  const website = sanitizePublicUrl(body.website, { allowRelative: false });
+  if (body.website && !website) {
+    return NextResponse.json({ error: 'Invalid website URL' }, { status: 400 });
+  }
+
   const slug = slugify(body.name_en, { lower: true, strict: true });
 
   const result = db.prepare(`
@@ -42,7 +48,7 @@ export async function POST(request: NextRequest) {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     body.name_en, body.name_ko, slug,
-    body.logo || null, body.website || null,
+    body.logo || null, website,
     body.description_en || null, body.description_ko || null,
     body.is_featured !== undefined ? (body.is_featured ? 1 : 0) : 1,
     body.sort_order || 0

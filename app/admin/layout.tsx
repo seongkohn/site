@@ -12,7 +12,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
-  const [setupForm, setSetupForm] = useState({ username: '', password: '', confirmPassword: '' });
+  const [setupTokenRequired, setSetupTokenRequired] = useState(false);
+  const [setupTokenConfigured, setSetupTokenConfigured] = useState(true);
+  const [setupForm, setSetupForm] = useState({ username: '', password: '', confirmPassword: '', setupToken: '' });
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const [errorText, setErrorText] = useState('');
@@ -26,6 +28,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       const setupRes = await fetch('/api/auth/setup');
       if (setupRes.ok) {
         const setupData = await setupRes.json();
+        setSetupTokenRequired(Boolean(setupData.setupTokenRequired));
+        setSetupTokenConfigured(Boolean(setupData.setupTokenConfigured));
         if (setupData.needsSetup) {
           setNeedsSetup(true);
           setLoading(false);
@@ -68,12 +72,24 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       setErrorKey('auth.usernameTooShort');
       return;
     }
+    if (setupTokenRequired && !setupTokenConfigured) {
+      setErrorText('Server setup token is not configured. Set ADMIN_SETUP_TOKEN first.');
+      return;
+    }
+    if (setupTokenRequired && !setupForm.setupToken.trim()) {
+      setErrorText('Setup token is required.');
+      return;
+    }
 
     try {
       const res = await fetch('/api/auth/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: setupForm.username, password: setupForm.password }),
+        body: JSON.stringify({
+          username: setupForm.username,
+          password: setupForm.password,
+          setupToken: setupForm.setupToken,
+        }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -155,6 +171,15 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             onChange={(e) => setSetupForm({ ...setupForm, confirmPassword: e.target.value })}
             className="w-full border border-gray-300 rounded px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-brand-purple"
           />
+          {setupTokenRequired && (
+            <input
+              type="password"
+              placeholder="Setup token"
+              value={setupForm.setupToken}
+              onChange={(e) => setSetupForm({ ...setupForm, setupToken: e.target.value })}
+              className="w-full border border-gray-300 rounded px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-brand-purple"
+            />
+          )}
           <button
             type="submit"
             className="w-full bg-brand-magenta text-white py-2 rounded hover:opacity-90 transition"

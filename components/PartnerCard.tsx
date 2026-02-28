@@ -3,11 +3,13 @@
 import Image from 'next/image';
 import { useLanguage, localize } from './LanguageProvider';
 import type { Brand } from '@/lib/types';
+import { sanitizePublicUrl } from '@/lib/url-safety';
 
 export default function PartnerCard({ brand }: { brand: Brand }) {
   const { lang } = useLanguage();
   const name = localize(lang, brand.name_en, brand.name_ko);
   const description = localize(lang, brand.description_en, brand.description_ko);
+  const website = sanitizePublicUrl(brand.website, { allowRelative: false });
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6 text-center hover:shadow-md transition">
@@ -20,9 +22,9 @@ export default function PartnerCard({ brand }: { brand: Brand }) {
       {description && (
         <p className="mt-2 text-sm text-gray-500 line-clamp-2">{description}</p>
       )}
-      {brand.website && (
+      {website && (
         <a
-          href={brand.website}
+          href={website}
           target="_blank"
           rel="noopener noreferrer"
           className="mt-3 inline-block text-sm text-brand-magenta hover:underline"

@@ -5,6 +5,7 @@ import { seedDatabase } from '@/lib/seed';
 import { verifyPassword, createToken, getTokenCookieOptions, getLogoutCookieOptions } from '@/lib/auth';
 import { verifyTurnstile } from '@/lib/turnstile';
 import { isRateLimited } from '@/lib/rate-limit';
+import { getClientIp } from '@/lib/request-ip';
 import type { AdminUser } from '@/lib/types';
 
 function ensureDb() {
@@ -15,7 +16,7 @@ function ensureDb() {
 export async function POST(request: Request) {
   try {
     ensureDb();
-    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const ip = getClientIp(request);
     if (isRateLimited(`login:${ip}`, 5, 15 * 60 * 1000)) {
       return NextResponse.json({ error: 'Too many login attempts. Try again later.' }, { status: 429 });
     }

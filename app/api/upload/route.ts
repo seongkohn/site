@@ -8,6 +8,7 @@ const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads', 'products');
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml', 'image/gif', 'image/tiff', 'image/bmp'];
 const MAX_SIZE = 20 * 1024 * 1024; // 20MB (larger limit since we'll compress)
 const MAX_WIDTH = 1600;
+const MAX_INPUT_PIXELS = 50_000_000; // Prevent image bomb payloads.
 
 export async function POST(request: NextRequest) {
   const user = await getAdminUser();
@@ -52,31 +53,25 @@ export async function POST(request: NextRequest) {
       .toLowerCase()
       .slice(0, 50);
 
-    // SVGs: sanitize then save (they're already optimized vectors)
-    if (file.type === 'image/svg+xml') {
-      let svgContent = buffer.toString('utf-8');
-      // Strip <script> tags (case-insensitive, including content)
-      svgContent = svgContent.replace(/<script[\s\S]*?<\/script\s*>/gi, '');
-      svgContent = svgContent.replace(/<script[^>]*\/>/gi, '');
-      // Strip event handler attributes (on*="...")
-      svgContent = svgContent.replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
-      // Strip javascript: and data: URIs in href/xlink:href/src attributes
-      svgContent = svgContent.replace(/(href|src)\s*=\s*(?:"(?:javascript|data):[^"]*"|'(?:javascript|data):[^']*')/gi, '$1=""');
-
-      const filename = `${timestamp}-${safeName}.svg`;
-      const filePath = path.join(UPLOAD_DIR, filename);
-      fs.writeFileSync(filePath, svgContent, 'utf-8');
-      return NextResponse.json({ url: `/uploads/products/${filename}` });
+    // Convert all allowed images (including SVG) into WebP.
+    const image = sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS });
+    let metadata: sharp.Metadata;
+    try {
+      metadata = await image.metadata();
+    } catch {
+      return NextResponse.json({ error: 'Invalid or unsupported image file' }, { status: 400 });
     }
 
-    // All raster images: optimize and convert to WebP
-    const image = sharp(buffer);
-    const metadata = await image.metadata();
+    const width = metadata.width || 1;
+    const height = metadata.height || 1;
+    if (width * height > MAX_INPUT_PIXELS) {
+      return NextResponse.json({ error: 'Image dimensions are too large' }, { status: 400 });
+    }
 
     // Adaptive quality: estimate if source is already compressed
     // Low bytes-per-pixel suggests pre-compressed/low-quality source → use higher WebP quality to avoid double-compression
     // High bytes-per-pixel suggests high-quality/uncompressed source → can compress more aggressively
-    const pixels = (metadata.width || 1) * (metadata.height || 1);
+    const pixels = width * height;
     const bytesPerPixel = buffer.length / pixels;
     let quality: number;
     if (bytesPerPixel < 0.5) {

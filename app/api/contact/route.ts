@@ -5,6 +5,7 @@ import { seedDatabase } from '@/lib/seed';
 import { sendContactEmail } from '@/lib/email';
 import { verifyTurnstile } from '@/lib/turnstile';
 import { isRateLimited } from '@/lib/rate-limit';
+import { getClientIp } from '@/lib/request-ip';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
     initializeSchema();
     seedDatabase();
 
-    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+    const ip = getClientIp(request);
 
     // Rate limit: 10 submissions per IP per 15 minutes
     if (isRateLimited(`contact:${ip}`, 10, 15 * 60 * 1000)) {
