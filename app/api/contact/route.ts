@@ -4,11 +4,21 @@ import { initializeSchema } from '@/lib/schema';
 import { seedDatabase } from '@/lib/seed';
 import { sendContactEmail } from '@/lib/email';
 import { verifyTurnstile } from '@/lib/turnstile';
+import { isRateLimited } from '@/lib/rate-limit';
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
   try {
     initializeSchema();
     seedDatabase();
+
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+
+    // Rate limit: 10 submissions per IP per 15 minutes
+    if (isRateLimited(`contact:${ip}`, 10, 15 * 60 * 1000)) {
+      return NextResponse.json({ error: 'Too many submissions. Please try again later.' }, { status: 429 });
+    }
 
     const body = await request.json();
     const {
@@ -25,14 +35,20 @@ export async function POST(request: Request) {
     const companyValue = organization || company || null;
     const emailLang = lang === 'ko' ? 'ko' : 'en';
 
-    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined;
-    if (!await verifyTurnstile(turnstileToken || '', ip)) {
+    if (!await verifyTurnstile(turnstileToken || '', ip || undefined)) {
       return NextResponse.json({ error: 'Verification failed' }, { status: 403 });
     }
 
     if (!name || !email || !message) {
       return NextResponse.json(
         { error: 'Name, email, and message are required' },
+        { status: 400 }
+      );
+    }
+
+    if (!EMAIL_REGEX.test(email)) {
+      return NextResponse.json(
+        { error: 'Invalid email address' },
         { status: 400 }
       );
     }

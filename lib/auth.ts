@@ -2,13 +2,20 @@ import bcryptjs from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 
-const JWT_SECRET: string = process.env.JWT_SECRET || (() => {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('JWT_SECRET environment variable is required in production');
-  }
-  return 'dev-only-secret-not-for-production';
-})();
 const COOKIE_NAME = 'admin_token';
+
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (process.env.NODE_ENV === 'production') {
+    if (!secret) {
+      throw new Error('JWT_SECRET environment variable is required in production');
+    }
+    if (secret === 'change-this-to-a-random-secret-in-production') {
+      throw new Error('JWT_SECRET is still set to the placeholder value. Generate a real secret for production.');
+    }
+  }
+  return secret || 'dev-only-secret-not-for-production';
+}
 
 export function hashPassword(password: string): string {
   return bcryptjs.hashSync(password, 10);
@@ -19,12 +26,12 @@ export function verifyPassword(password: string, hash: string): boolean {
 }
 
 export function createToken(payload: { id: number; username: string }): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: '24h' });
 }
 
 export function verifyToken(token: string): { id: number; username: string } | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as { id: number; username: string };
+    return jwt.verify(token, getJwtSecret()) as { id: number; username: string };
   } catch {
     return null;
   }

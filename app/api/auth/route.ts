@@ -4,23 +4,8 @@ import { initializeSchema } from '@/lib/schema';
 import { seedDatabase } from '@/lib/seed';
 import { verifyPassword, createToken, getTokenCookieOptions, getLogoutCookieOptions } from '@/lib/auth';
 import { verifyTurnstile } from '@/lib/turnstile';
+import { isRateLimited } from '@/lib/rate-limit';
 import type { AdminUser } from '@/lib/types';
-
-// Simple in-memory rate limiter for login attempts
-const loginAttempts = new Map<string, { count: number; resetAt: number }>();
-const MAX_ATTEMPTS = 5;
-const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = loginAttempts.get(ip);
-  if (!entry || now > entry.resetAt) {
-    loginAttempts.set(ip, { count: 1, resetAt: now + WINDOW_MS });
-    return false;
-  }
-  entry.count++;
-  return entry.count > MAX_ATTEMPTS;
-}
 
 function ensureDb() {
   initializeSchema();
@@ -29,12 +14,12 @@ function ensureDb() {
 
 export async function POST(request: Request) {
   try {
+    ensureDb();
     const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
-    if (isRateLimited(ip)) {
+    if (isRateLimited(`login:${ip}`, 5, 15 * 60 * 1000)) {
       return NextResponse.json({ error: 'Too many login attempts. Try again later.' }, { status: 429 });
     }
 
-    ensureDb();
     const { username, password, turnstileToken } = await request.json();
 
     if (!await verifyTurnstile(turnstileToken || '', ip)) {

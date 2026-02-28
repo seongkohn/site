@@ -52,11 +52,20 @@ export async function POST(request: NextRequest) {
       .toLowerCase()
       .slice(0, 50);
 
-    // SVGs: keep as-is (they're already optimized vectors)
+    // SVGs: sanitize then save (they're already optimized vectors)
     if (file.type === 'image/svg+xml') {
+      let svgContent = buffer.toString('utf-8');
+      // Strip <script> tags (case-insensitive, including content)
+      svgContent = svgContent.replace(/<script[\s\S]*?<\/script\s*>/gi, '');
+      svgContent = svgContent.replace(/<script[^>]*\/>/gi, '');
+      // Strip event handler attributes (on*="...")
+      svgContent = svgContent.replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+      // Strip javascript: and data: URIs in href/xlink:href/src attributes
+      svgContent = svgContent.replace(/(href|src)\s*=\s*(?:"(?:javascript|data):[^"]*"|'(?:javascript|data):[^']*')/gi, '$1=""');
+
       const filename = `${timestamp}-${safeName}.svg`;
       const filePath = path.join(UPLOAD_DIR, filename);
-      fs.writeFileSync(filePath, buffer);
+      fs.writeFileSync(filePath, svgContent, 'utf-8');
       return NextResponse.json({ url: `/uploads/products/${filename}` });
     }
 

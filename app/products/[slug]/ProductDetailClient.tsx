@@ -25,8 +25,11 @@ function getVideoEmbedUrl(url: string): string | null {
   // Vimeo
   const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
   if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
-  // Already an embed URL
-  if (url.includes('embed')) return url;
+  // Already an embed URL — only allow https://
+  if (url.includes('embed')) {
+    if (!url.startsWith('https://')) return null;
+    return url;
+  }
   return null;
 }
 

@@ -163,6 +163,12 @@ export function initializeSchema() {
       value_ko TEXT DEFAULT '',
       sort_order INTEGER DEFAULT 0
     );
+
+    CREATE TABLE IF NOT EXISTS rate_limits (
+      key TEXT PRIMARY KEY,
+      count INTEGER NOT NULL DEFAULT 0,
+      reset_at INTEGER NOT NULL
+    );
   `);
 
   // Migration: add detail_en/detail_ko to products if missing

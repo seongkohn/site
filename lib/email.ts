@@ -1,6 +1,9 @@
 import { getDb } from '@/lib/db';
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
+if (process.env.NODE_ENV === 'production' && !BREVO_API_KEY) {
+  console.warn('WARNING: BREVO_API_KEY is not set. Email sending will fail in production.');
+}
 const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
 const SENDER_NAME = '=?UTF-8?B?7ISx6rOk66y07JetKOyjvCk=?=';
 

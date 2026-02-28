@@ -65,8 +65,25 @@ export async function PUT(request: NextRequest) {
 
   // Handle settings update
   if (body.settings && typeof body.settings === 'object') {
+    const ALLOWED_SETTINGS_KEYS = new Set([
+      'company_name_en',
+      'company_name_ko',
+      'company_address_en',
+      'company_address_ko',
+      'company_phone',
+      'company_fax',
+      'company_email',
+      'contact_recipients',
+      'smtp_from',
+      'leads_auto_delete_days',
+      'turnstile_enabled',
+      'about_timeline_json',
+    ]);
     const upsert = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?');
     for (const [key, value] of Object.entries(body.settings)) {
+      if (!ALLOWED_SETTINGS_KEYS.has(key)) {
+        return NextResponse.json({ error: `Invalid settings key: ${key}` }, { status: 400 });
+      }
       upsert.run(key, value as string, value as string);
     }
   }

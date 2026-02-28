@@ -1,6 +1,9 @@
 import { getDb } from '@/lib/db';
 
 const TURNSTILE_SECRET = process.env.TURNSTILE_SECRET || '';
+if (process.env.NODE_ENV === 'production' && !TURNSTILE_SECRET) {
+  console.warn('WARNING: TURNSTILE_SECRET is not set. Turnstile verification will fail in production.');
+}
 
 export function isTurnstileEnabled(): boolean {
   try {
